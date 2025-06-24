@@ -1,0 +1,246 @@
+mod client;
+mod error;
+mod extensions;
+mod jwt;
+mod models;
+mod signer;
+mod util;
+
+pub use {client::*, error::Error, extensions::*, models::*, signer::*};
+
+pub type Result<T> = std::result::Result<T, Error>;
+pub const FIREBLOCKS_API: &str = "https://api.fireblocks.io";
+pub const FIREBLOCKS_SANDBOX_API: &str = "https://sandbox-api.fireblocks.io";
+
+#[cfg(test)]
+mod test {
+
+    use {
+        super::*,
+        base64::prelude::*,
+        solana_message::Message,
+        solana_pubkey::{Pubkey, pubkey},
+        solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
+        solana_sdk::{
+            account::from_account,
+            clock::Clock,
+            commitment_config::CommitmentConfig,
+            instruction::Instruction,
+            sysvar,
+        },
+        solana_transaction::{Transaction, versioned::VersionedTransaction},
+        std::{
+            env,
+            sync::{Arc, Once},
+            time::Duration,
+        },
+        tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
+    };
+    static INIT: Once = Once::new();
+    const LOOKUP: Pubkey = pubkey!("24DJ3Um2ekF2isQVMZcNHusmzLMMUS1oHQXhpPkVX7WV");
+    #[allow(dead_code)]
+    const USDC: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+    const TO: Pubkey = pubkey!("E4SfgGV2v9GLYsEkCQhrrnFbBcYmAiUZZbJ7swKGzZHJ");
+
+    #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
+    pub fn setup() {
+        INIT.call_once(|| {
+            tracing_subscriber::fmt()
+                .with_target(true)
+                .with_level(true)
+                .with_span_events(FmtSpan::CLOSE)
+                .with_env_filter(EnvFilter::from_default_env())
+                .init();
+
+            if env::var("CI").is_err() {
+                // only load .env if not in CI
+                let env = dotenvy::dotenv();
+                if env.is_err() {
+                    tracing::debug!("no .env file");
+                }
+            }
+        });
+    }
+
+    fn memo(message: &str) -> Instruction {
+        Instruction {
+            program_id: spl_memo::id(),
+            accounts: vec![],
+            data: message.as_bytes().to_vec(),
+        }
+    }
+
+    fn fireblocks_client() -> anyhow::Result<(Client, Arc<RpcClient>)> {
+        let api_key: String =
+            std::env::var("FIREBLOCKS_API_KEY").expect("FIREBLOCKS_API_KEY is not set");
+        let key: String = std::env::var("FIREBLOCKS_SECRET").expect("FIREBLOCKS_SECRET is not set");
+        let rsa_pem = key.as_bytes().to_vec();
+        let rpc = Arc::new(RpcClient::new(
+            std::env::var("RPC_URL")
+                .ok()
+                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+        ));
+
+        Ok((
+            ClientBuilder::new(&api_key, &rsa_pem)
+                .with_sandbox()
+                .with_user_agent("fireblocks-solana-signer-test")
+                .with_timeout(Duration::from_secs(15))
+                .build()?,
+            rpc,
+        ))
+    }
+
+    #[allow(dead_code)]
+    pub fn lookup_table_create(
+        rpc: &RpcClient,
+        payer: Pubkey,
+    ) -> anyhow::Result<(Vec<Instruction>, Pubkey)> {
+        // ) -> anyhow::Result<(Instruction, Pubkey)> {
+        let clock =
+            rpc.get_account_with_commitment(&sysvar::clock::id(), CommitmentConfig::finalized())?;
+
+        let clock = clock
+            .value
+            .ok_or_else(|| anyhow::format_err!("no clock for you"))?;
+        // || anyhow::format_err!("no clock for you"))?;
+        let clock_account: Clock =
+            from_account(&clock).ok_or(anyhow::format_err!("invalid clock account"))?;
+        let (create, account) = solana_sdk::address_lookup_table::instruction::create_lookup_table(
+            payer,
+            payer,
+            clock_account.slot,
+        );
+        let accounts = vec![
+            spl_memo::id(),
+            pubkey!("ComputeBudget111111111111111111111111111111"),
+            pubkey!("Stake11111111111111111111111111111111111111"),
+            pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+            pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"), // token ext
+        ];
+        let extend = solana_sdk::address_lookup_table::instruction::extend_lookup_table(
+            account,
+            payer,
+            Some(payer),
+            accounts,
+        );
+        Ok((vec![create, extend], account))
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn create_lookup() -> anyhow::Result<()> {
+        setup();
+        let (client, rpc) = fireblocks_client()?;
+        let pk = client.address("0", "SOL_TEST")?;
+        tracing::info!("using pubkey {}", pk);
+        let hash = rpc.get_latest_blockhash()?;
+        let (lookup_create, account) = lookup_table_create(&rpc, pk)?;
+        tracing::info!("Creating lookup table {account}");
+        let message = Message::new_with_blockhash(&lookup_create, Some(&pk), &hash);
+        let tx = Transaction::new_unsigned(message);
+        let base64_tx = BASE64_STANDARD.encode(bincode::serialize(&tx)?);
+        let resp = client.program_call("SOL_TEST", "0", base64_tx)?;
+        tracing::info!("txid {resp}");
+        let (resp, sig) = client.poll(
+            &resp.id,
+            std::time::Duration::from_secs(90),
+            Duration::from_secs(7),
+            |t| tracing::info!("transaction status {t}"),
+        )?;
+        assert!(sig.is_some());
+        let sig = sig.unwrap_or_default();
+        tracing::info!("sig {sig} txid {}", resp.id);
+        Ok(())
+    }
+
+    // #[test]
+    #[allow(dead_code)]
+    fn append_lookup() -> anyhow::Result<()> {
+        setup();
+        let (client, rpc) = fireblocks_client()?;
+        let pk = client.address("0", "SOL_TEST")?;
+        tracing::info!("using pubkey {}", pk);
+        let hash = rpc.get_latest_blockhash()?;
+        let extend = solana_sdk::address_lookup_table::instruction::extend_lookup_table(
+            LOOKUP,
+            pk,
+            Some(pk),
+            vec![TO],
+        );
+
+        tracing::info!("Extending lookup table {TO}");
+        let message = Message::new_with_blockhash(&[extend], Some(&pk), &hash);
+        let tx = Transaction::new_unsigned(message);
+        let base64_tx = BASE64_STANDARD.encode(bincode::serialize(&tx)?);
+        let resp = client.program_call("SOL_TEST", "0", base64_tx)?;
+        tracing::info!("txid {resp}");
+        let (resp, sig) = client.poll(
+            &resp.id,
+            std::time::Duration::from_secs(90),
+            Duration::from_secs(7),
+            |t| tracing::info!("transaction status {t}"),
+        )?;
+        assert!(sig.is_some());
+        let sig = sig.unwrap_or_default();
+        tracing::info!("sig {sig} txid {}", resp.id);
+        Ok(())
+    }
+
+    #[test]
+    fn test_client() -> anyhow::Result<()> {
+        setup();
+        let (client, rpc) = fireblocks_client()?;
+        let pk = client.address("0", "SOL_TEST")?;
+        tracing::info!("using pubkey {}", pk);
+        let hash = rpc.get_latest_blockhash()?;
+        let message = Message::new_with_blockhash(&[memo("fireblocks signer")], Some(&pk), &hash);
+        let tx = Transaction::new_unsigned(message);
+        let base64_tx = BASE64_STANDARD.encode(bincode::serialize(&tx)?);
+        let resp = client.program_call("SOL_TEST", "0", base64_tx)?;
+        tracing::info!("txid {resp}");
+        let (resp, sig) = client.poll(
+            &resp.id,
+            std::time::Duration::from_secs(90),
+            Duration::from_secs(7),
+            |t| tracing::info!("transaction status {t}"),
+        )?;
+        assert!(sig.is_some());
+        let sig = sig.unwrap_or_default();
+        tracing::info!("sig {sig} txid {}", resp.id);
+        Ok(())
+    }
+
+    #[test]
+    fn test_signer_legacy() -> anyhow::Result<()> {
+        setup();
+        let (client, rpc) = fireblocks_client()?;
+        let signer = FireblocksSigner::init("0".to_string(), "SOL_TEST", client)?;
+        tracing::info!("using pubkey {}", signer.pk);
+        let hash = rpc.get_latest_blockhash()?;
+        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_sign(&[&signer], hash)?;
+        tracing::info!("sig {}", tx.get_signature());
+        Ok(())
+    }
+
+    #[test]
+    fn test_signer_versioned() -> anyhow::Result<()> {
+        setup();
+        let (client, rpc) = fireblocks_client()?;
+        let signer = FireblocksSigner::init("0".to_string(), "SOL_TEST", client)?;
+        tracing::info!("using pubkey {}", signer.pk);
+        let instructions = vec![
+            memo("fireblocks signer versioned"),
+            memo("lookup this"),
+            solana_sdk::system_instruction::transfer(&signer.pk, &TO, 1),
+        ];
+        let hash = rpc.get_latest_blockhash()?;
+        let alt = crate::util::lookup(&rpc, &[LOOKUP])?;
+        let mut tx = VersionedTransaction::new_unsigned_v0(&signer.pk, &instructions, &alt, hash)?;
+        tx.try_sign(&[&signer], None)?;
+        tracing::info!("sig {}", tx.get_signature());
+        Ok(())
+    }
+}

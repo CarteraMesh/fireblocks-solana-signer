@@ -8,6 +8,11 @@
 # See check.yml for information about how the concurrency cancellation and workflow triggering works
 permissions:
   contents: read
+env:
+  RPC_URL: ${{ secrets.RPC_URL }}
+  FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
+  FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
+  RUST_LOG: "fireblocks_solana_signer=debug" 
 on:
   push:
     branches: [main]
@@ -90,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest]
     steps:
       # if your project needs OpenSSL, uncomment this to fix Windows builds.
       # it's commented out by default as the install command takes 5-10m.

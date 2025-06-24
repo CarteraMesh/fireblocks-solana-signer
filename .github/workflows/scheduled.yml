@@ -3,12 +3,18 @@
 # information about how the concurrency cancellation and workflow triggering works
 permissions:
   contents: read
+env:
+  RPC_URL: ${{ secrets.RPC_URL }}
+  FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
+  FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
+  RUST_LOG: "fireblocks_solana_signer=debug" 
+
 on:
   push:
     branches: [main]
   pull_request:
   schedule:
-    - cron:  '7 7 * * 2100'
+    - cron:  '7 7 28 * *'
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
