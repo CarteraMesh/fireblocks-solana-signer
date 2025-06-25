@@ -70,7 +70,7 @@ mod test {
         }
     }
 
-    fn fireblocks_client() -> anyhow::Result<(Client, Arc<RpcClient>)> {
+    fn clients() -> anyhow::Result<(Client, Arc<RpcClient>)> {
         let api_key: String =
             std::env::var("FIREBLOCKS_API_KEY").expect("FIREBLOCKS_API_KEY is not set");
         let key: String = std::env::var("FIREBLOCKS_SECRET").expect("FIREBLOCKS_SECRET is not set");
@@ -89,6 +89,27 @@ mod test {
                 .build()?,
             rpc,
         ))
+    }
+
+    fn signer() -> anyhow::Result<(FireblocksSigner, Arc<RpcClient>)> {
+        let (client, rpc) = clients()?;
+        let poll = PollConfig::builder()
+            .timeout(Duration::from_secs(15))
+            .interval(Duration::from_secs(3))
+            .callback(|t| tracing::info!("{}", t))
+            .build();
+        let pk = client.address("0", "SOL_TEST")?;
+        tracing::info!("using pubkey {}", pk);
+
+        let signer = FireblocksSigner::builder()
+            .client(client)
+            .pk(pk)
+            .vault_id("0".to_string())
+            .asset("SOL_TEST".to_string())
+            .poll_config(poll)
+            .build();
+
+        Ok((signer, rpc))
     }
 
     #[allow(dead_code)]
@@ -131,7 +152,7 @@ mod test {
     #[allow(dead_code)]
     fn create_lookup() -> anyhow::Result<()> {
         setup();
-        let (client, rpc) = fireblocks_client()?;
+        let (client, rpc) = clients()?;
         let pk = client.address("0", "SOL_TEST")?;
         tracing::info!("using pubkey {}", pk);
         let hash = rpc.get_latest_blockhash()?;
@@ -158,7 +179,7 @@ mod test {
     #[allow(dead_code)]
     fn append_lookup() -> anyhow::Result<()> {
         setup();
-        let (client, rpc) = fireblocks_client()?;
+        let (client, rpc) = clients()?;
         let pk = client.address("0", "SOL_TEST")?;
         tracing::info!("using pubkey {}", pk);
         let hash = rpc.get_latest_blockhash()?;
@@ -177,8 +198,8 @@ mod test {
         tracing::info!("txid {resp}");
         let (resp, sig) = client.poll(
             &resp.id,
-            std::time::Duration::from_secs(90),
-            Duration::from_secs(7),
+            std::time::Duration::from_secs(15),
+            Duration::from_secs(3),
             |t| tracing::info!("transaction status {t}"),
         )?;
         assert!(sig.is_some());
@@ -190,7 +211,7 @@ mod test {
     #[test]
     fn test_client() -> anyhow::Result<()> {
         setup();
-        let (client, rpc) = fireblocks_client()?;
+        let (client, rpc) = clients()?;
         let pk = client.address("0", "SOL_TEST")?;
         tracing::info!("using pubkey {}", pk);
         let hash = rpc.get_latest_blockhash()?;
@@ -214,9 +235,7 @@ mod test {
     #[test]
     fn test_signer_legacy() -> anyhow::Result<()> {
         setup();
-        let (client, rpc) = fireblocks_client()?;
-        let signer = FireblocksSigner::init("0".to_string(), "SOL_TEST", client)?;
-        tracing::info!("using pubkey {}", signer.pk);
+        let (signer, rpc) = signer()?;
         let hash = rpc.get_latest_blockhash()?;
         let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
         let mut tx = Transaction::new_unsigned(message);
@@ -228,9 +247,7 @@ mod test {
     #[test]
     fn test_signer_versioned() -> anyhow::Result<()> {
         setup();
-        let (client, rpc) = fireblocks_client()?;
-        let signer = FireblocksSigner::init("0".to_string(), "SOL_TEST", client)?;
-        tracing::info!("using pubkey {}", signer.pk);
+        let (signer, rpc) = signer()?;
         let instructions = vec![
             memo("fireblocks signer versioned"),
             memo("lookup this"),
