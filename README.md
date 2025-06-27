@@ -21,6 +21,26 @@
 
 Implementation of a Solana [Signer](https://docs.rs/solana-signer/2.2.1/solana_signer/trait.Signer.html) using Fireblocks as backend signer
 
+## Prerequisites
+
+A fireblocks account with API key.
+See developer [portal](https://developers.fireblocks.com/docs/introduction) and sign up for a [sandbox](https://developers.fireblocks.com/docs/sandbox-quickstart) account
+
+## Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+fireblocks-solana-signer = "0.1.0"
+```
+
+Or install via cargo:
+
+```bash
+cargo add fireblocks-solana-signer@0.1.0
+```
+
 ## ⚠️ IMPORTANT: Automatic Transaction Broadcasting
 
 **This signer automatically broadcasts transactions to the Solana network.** When you call any signing method (like `try_sign`), Fireblocks will:
@@ -36,7 +56,7 @@ The transaction is already on-chain when the signing method returns successfully
 ## TLDR
 
 
-```rust
+```rust,no_run
 use {
     fireblocks_solana_signer::FireblocksSigner,
     solana_message::Message,
@@ -90,3 +110,66 @@ See [example](./examples/memo.rs)
 | FIREBLOCKS_VAULT         | your vault id                                         |
 | FIREBLOCKS_POLL_TIMEOUT  | in seconds, total time to check status of transaction |
 | FIREBLOCKS_POLL_INTERVAL | in seconds                                            |
+
+## Development
+
+### Prerequisites
+
+- **Rust Nightly**: Required for code formatting with advanced features
+  ```bash
+  rustup install nightly
+  ```
+
+- **Environment Setup**: Create a `.env` file with your Fireblocks credentials
+  ```bash
+  cp env-sample .env
+  # Edit .env with your actual Fireblocks API credentials
+  ```
+
+### Getting Started
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/CarteraMesh/fireblocks-solana-signer.git
+   cd fireblocks-solana-signer
+   ```
+
+2. **Set up environment**
+   ```bash
+   # Copy and configure environment variables
+   cp env-sample .env
+   
+   # Install Rust nightly for formatting
+   rustup install nightly
+   ```
+
+3. **Build and test**
+   ```bash
+   # Build the project
+   cargo build
+   
+   # Run tests (requires valid Fireblocks credentials in .env)
+   cargo test
+   
+   # Format code (requires nightly)
+   cargo +nightly fmt --all
+   ```
+
+### Code Formatting
+
+This project uses advanced Rust formatting features that require nightly:
+
+```bash
+# Format all code
+cargo +nightly fmt --all
+
+# Check formatting
+cargo +nightly fmt --all -- --check
+```
+
+### Running Examples
+
+```bash
+# Make sure your .env file is configured first
+cargo run --example memo
+```
