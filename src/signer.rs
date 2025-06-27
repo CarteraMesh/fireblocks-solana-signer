@@ -118,16 +118,16 @@ impl FireblocksSigner {
 }
 
 impl Signer for FireblocksSigner {
+    fn try_pubkey(&self) -> std::result::Result<Pubkey, solana_signer::SignerError> {
+        Ok(self.pk)
+    }
+
     fn try_sign_message(
         &self,
         message: &[u8],
     ) -> std::result::Result<Signature, solana_signer::SignerError> {
         self.sign_transaction(message)
             .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
-    }
-
-    fn try_pubkey(&self) -> std::result::Result<Pubkey, solana_signer::SignerError> {
-        Ok(self.pk)
     }
 
     fn is_interactive(&self) -> bool {
