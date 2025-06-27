@@ -9,7 +9,7 @@ pub struct CreateTransactionResponse {
     /// Unique Fireblocks identifier of the transaction
     #[serde(rename = "id")]
     pub id: String,
-    /// The primary status of the transaction. For details, see [Primary transaction statuses.] (https://developers.fireblocks.com/reference/primary-transaction-statuses)
+    /// The primary status of the transaction. For details, see [Primary transaction statuses.](https://developers.fireblocks.com/reference/primary-transaction-statuses)
     #[serde(rename = "status")]
     pub status: models::TransactionStatus,
     #[serde(rename = "systemMessages", skip_serializing_if = "Option::is_none")]

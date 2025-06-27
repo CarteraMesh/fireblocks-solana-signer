@@ -1,6 +1,7 @@
 mod common;
 
 use {
+    fireblocks_solana_signer::FireblocksSigner,
     solana_message::Message,
     solana_pubkey::{Pubkey, pubkey},
     solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
@@ -54,7 +55,12 @@ pub fn lookup_table_instructions(
 
 #[allow(dead_code)]
 fn create_lookup() -> anyhow::Result<()> {
-    let (signer, rpc) = common::signer()?;
+    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let rpc = RpcClient::new(
+        std::env::var("RPC_URL")
+            .ok()
+            .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+    );
     let pk = signer.pubkey();
     println!("using pubkey {}", pk);
     let hash = rpc.get_latest_blockhash()?;
@@ -70,7 +76,12 @@ fn create_lookup() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn append_lookup() -> anyhow::Result<()> {
-    let (signer, rpc) = common::signer()?;
+    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let rpc = RpcClient::new(
+        std::env::var("RPC_URL")
+            .ok()
+            .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+    );
     let pk = signer.pubkey();
     println!("using pubkey {}", pk);
     let hash = rpc.get_latest_blockhash()?;

@@ -1,3 +1,20 @@
+#![doc = include_str!("../README.md")]
+//! ⚠️ IMPORTANT: Automatic Transaction Broadcasting
+//!
+//! **This signer automatically broadcasts transactions to the Solana network.**
+//! When you call any signing method (like `try_sign`), Fireblocks will:
+//!
+//! 1. Sign the transaction with your private key
+//! 2. **Automatically broadcast the signed transaction to the network**
+//! 3. Return the signature to your application
+//!
+//! This is a **purposeful security design decision** by Fireblocks to ensure
+//! transaction integrity. **You do not need to (and should not) broadcast the
+//! transaction yourself** after signing.
+//!
+//! The transaction is already on-chain when the signing method returns
+//! successfully!
+
 mod asset;
 mod client;
 mod error;
@@ -9,8 +26,13 @@ mod util;
 
 pub use {asset::*, client::*, error::Error, extensions::*, models::*, signer::*};
 
+/// A type alias for [`std::result::Result`] with this crate's [`Error`] type.
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// The production Fireblocks API endpoint.
 pub const FIREBLOCKS_API: &str = "https://api.fireblocks.io";
+
+/// The sandbox Fireblocks API endpoint for testing.
 pub const FIREBLOCKS_SANDBOX_API: &str = "https://sandbox-api.fireblocks.io";
 
 #[cfg(test)]
