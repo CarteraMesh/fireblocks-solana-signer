@@ -1,7 +1,16 @@
 [package]
 name = "fireblocks-solana-signer"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+description = "Implementation of a Solana Signer using Fireblocks as backend signer"
+license = "MIT"
+authors = ["gh@cartera-mesh.com"]
+repository = "https://github.com/CarteraMesh/fireblocks-solana-signer"
+documentation = "https://docs.rs/fireblocks-solana-signer"
+homepage = "https://github.com/CarteraMesh/fireblocks-solana-signer"
+keywords = ["solana", "fireblocks", "signer", "blockchain", "crypto"]
+categories = ["cryptography::cryptocurrencies" , "api-bindings"]
+readme = "README.md"
 
 [features]
 default = []
@@ -28,7 +37,6 @@ rand = { version = "0.9" }
 reqwest = { version = "^0.12", features = ["json", "multipart", "blocking"] }
 thiserror = "2"
 tracing = { version = "0.1" }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 bon = "3.6.4"
 
 
