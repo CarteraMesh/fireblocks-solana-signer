@@ -88,6 +88,7 @@ jobs:
     # run docs generation on nightly rather than stable. This enables features like
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
     # API be documented as only available in some specific platforms.
+    #
     runs-on: ubuntu-latest
     name: nightly / doc
     steps:
@@ -117,3 +118,22 @@ jobs:
       # --feature-powerset runs for every combination of features
       - name: cargo hack
         run: cargo hack --feature-powerset check
+
+  udeps:
+    runs-on: ubicloud-standard-2
+    name: udeps
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install nightly
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-udeps
+      - name: Install cargo-udeps
+        uses: taiki-e/install-action@cargo-udeps
+      - name: cargo udeps
+        run: cargo udeps
+
