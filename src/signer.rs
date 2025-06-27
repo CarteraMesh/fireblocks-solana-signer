@@ -1,6 +1,7 @@
 use {
     crate::{Client, Error, Result, VersionedTransactionExtension},
     base64::prelude::*,
+    bon::Builder,
     solana_message::VersionedMessage,
     solana_pubkey::Pubkey,
     solana_signature::Signature,
@@ -9,7 +10,7 @@ use {
     std::{fmt::Debug, time::Duration},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Builder)]
 pub struct PollConfig {
     pub timeout: Duration,
     pub interval: Duration,
@@ -26,7 +27,7 @@ impl Default for PollConfig {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, bon::Builder)]
 pub struct FireblocksSigner {
     pub vault_id: String,
     pub asset: String,
@@ -42,17 +43,6 @@ impl Debug for FireblocksSigner {
 }
 
 impl FireblocksSigner {
-    pub fn init(vault_id: String, asset: &str, client: crate::Client) -> Result<Self> {
-        let pk = client.address(&vault_id, asset)?;
-        Ok(Self {
-            vault_id,
-            asset: asset.to_string(),
-            pk,
-            client,
-            poll_config: PollConfig::default(),
-        })
-    }
-
     #[tracing::instrument(level = "debug", skip(message))]
     fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
         let versioned_message: VersionedMessage = bincode::deserialize(message)
