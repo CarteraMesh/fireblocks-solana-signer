@@ -7,8 +7,12 @@ env:
   RPC_URL: ${{ secrets.RPC_URL }}
   FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
   FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
-  RUST_LOG: "fireblocks_solana_signer=debug" 
-
+  RUST_LOG: "fireblocks_solana_signer=debug"
+  FIREBLOCKS_ENDPOINT: https://sandbox-api.fireblocks.io
+  FIREBLOCKS_POLL_TIMEOUT: "15"
+  FIREBLOCKS_POLL_INTERVAL: "3"
+  FIREBLOCKS_DEVNET: "true"
+  FIREBLOCKS_VAULT: "0"
 on:
   push:
     branches: [main]

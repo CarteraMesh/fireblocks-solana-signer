@@ -1,3 +1,4 @@
+mod asset;
 mod client;
 mod error;
 mod extensions;
@@ -6,7 +7,7 @@ mod models;
 mod signer;
 mod util;
 
-pub use {client::*, error::Error, extensions::*, models::*, signer::*};
+pub use {asset::*, client::*, error::Error, extensions::*, models::*, signer::*};
 
 pub type Result<T> = std::result::Result<T, Error>;
 pub const FIREBLOCKS_API: &str = "https://api.fireblocks.io";
@@ -100,7 +101,7 @@ mod test {
             .client(client)
             .pk(pk)
             .vault_id("0".to_string())
-            .asset("SOL_TEST".to_string())
+            .asset(SOL_TEST)
             .poll_config(poll)
             .build();
 
@@ -158,6 +159,14 @@ mod test {
         let mut tx = VersionedTransaction::new_unsigned_v0(&signer.pk, &instructions, &alt, hash)?;
         tx.try_sign(&[&signer], None)?;
         tracing::info!("sig {}", tx.get_signature());
+        Ok(())
+    }
+
+    #[test]
+    fn test_env() -> anyhow::Result<()> {
+        setup();
+        let _ = FireblocksSigner::from_env(None)?;
+        let _ = FireblocksSigner::from_env(Some(|t| println!("{t}")))?;
         Ok(())
     }
 }

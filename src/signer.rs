@@ -1,5 +1,5 @@
 use {
-    crate::{Client, Error, Result, VersionedTransactionExtension},
+    crate::{Asset, Client, ClientBuilder, Error, Result, VersionedTransactionExtension},
     base64::prelude::*,
     bon::Builder,
     solana_message::VersionedMessage,
@@ -30,9 +30,9 @@ impl Default for PollConfig {
 #[derive(Clone, bon::Builder)]
 pub struct FireblocksSigner {
     pub vault_id: String,
-    pub asset: String,
+    pub asset: Asset,
     pub pk: Pubkey,
-    poll_config: PollConfig,
+    pub poll_config: PollConfig,
     client: Client,
 }
 
@@ -64,6 +64,56 @@ impl FireblocksSigner {
         sig.ok_or_else(|| {
             crate::Error::FireblocksNoSig(format!("No Signature available for txid {result}"))
         })
+    }
+
+    pub fn from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+        let vault = std::env::var("FIREBLOCKS_VAULT")?;
+        let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
+            || std::env::var("FIREBLOCKS_DEVNET").is_ok()
+        {
+            crate::SOL_TEST
+        } else {
+            crate::SOL
+        };
+        let key = std::env::var("FIREBLOCKS_SECRET")?;
+        let api = std::env::var("FIREBLOCKS_API_KEY")?;
+        let endpoint = std::env::var("FIREBLOCKS_ENDPOINT")?;
+        let rsa_pem = key.as_bytes().to_vec();
+        let client = ClientBuilder::new(&api, &rsa_pem)
+            .with_url(&endpoint)
+            .with_user_agent("fireblocks-solana-signer for rust")
+            .with_timeout(Duration::from_secs(15))
+            .build()?;
+
+        let pk = client.address(&vault, &asset)?;
+
+        let default_poll = PollConfig::default();
+        let poll_timeout = Duration::from_secs(
+            std::env::var("FIREBLOCKS_POLL_TIMEOUT")
+                .unwrap_or_else(|_| "60".to_string())
+                .parse()
+                .unwrap_or(60),
+        );
+        let poll_interval = Duration::from_secs(
+            std::env::var("FIREBLOCKS_POLL_INTERVAL")
+                .unwrap_or_else(|_| "5".to_string())
+                .parse()
+                .unwrap_or(5),
+        );
+
+        let cb = f.unwrap_or(default_poll.callback);
+        let poll = PollConfig::builder()
+            .timeout(poll_timeout)
+            .interval(poll_interval)
+            .callback(cb)
+            .build();
+        Ok(FireblocksSigner::builder()
+            .client(client)
+            .vault_id(vault)
+            .asset(asset)
+            .poll_config(poll)
+            .pk(pk)
+            .build())
     }
 }
 
