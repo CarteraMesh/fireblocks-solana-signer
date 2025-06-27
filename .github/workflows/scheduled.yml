@@ -14,11 +14,8 @@ env:
   FIREBLOCKS_DEVNET: "true"
   FIREBLOCKS_VAULT: "0"
 on:
-  push:
-    branches: [main]
-  pull_request:
   schedule:
-    - cron:  '7 7 28 * *'
+    - cron:  '7 7 1,7,20 * *'
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true

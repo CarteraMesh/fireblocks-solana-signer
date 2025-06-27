@@ -5,7 +5,6 @@ use {
     solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
     solana_sdk::instruction::Instruction,
     solana_transaction::Transaction,
-    std::sync::Arc,
 };
 
 fn memo(message: &str) -> Instruction {
@@ -18,9 +17,12 @@ fn memo(message: &str) -> Instruction {
 
 fn main() -> anyhow::Result<()> {
     common::setup();
-    let tuple = common::signer()?;
-    let signer: FireblocksSigner = tuple.0;
-    let rpc: Arc<RpcClient> = tuple.1;
+    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let rpc = RpcClient::new(
+        std::env::var("RPC_URL")
+            .ok()
+            .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+    );
     let hash = rpc.get_latest_blockhash()?;
     let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
     let mut tx = Transaction::new_unsigned(message);

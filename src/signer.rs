@@ -1,3 +1,36 @@
+//! Fireblocks Solana Signer implementation.
+//!
+//! This module provides the [`FireblocksSigner`] struct, which implements the
+//! Solana [`Signer`] trait using Fireblocks as the backend signing service.
+//! This allows for secure transaction signing through Fireblocks' custody
+//! solution while maintaining compatibility with the Solana ecosystem.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use {
+//!     fireblocks_solana_signer::FireblocksSigner,
+//!     solana_message::Message,
+//!     solana_sdk::instruction::Instruction,
+//!     solana_transaction::Transaction,
+//! };
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! // Create signer from environment variables
+//! let signer = FireblocksSigner::from_env(None)?;
+//!
+//! // Create and sign a transaction
+//! let instruction = Instruction {
+//!     program_id: spl_memo::id(),
+//!     accounts: vec![],
+//!     data: b"Hello Fireblocks!".to_vec(),
+//! };
+//! let message = Message::new(&[instruction], Some(&signer.pk));
+//! let mut transaction = Transaction::new_unsigned(message);
+//! # Ok(())
+//! # }
+//! ```
+
 use {
     crate::{Asset, Client, ClientBuilder, Error, Result, VersionedTransactionExtension},
     base64::prelude::*,
@@ -10,14 +43,52 @@ use {
     std::{fmt::Debug, time::Duration},
 };
 
+/// Configuration for polling Fireblocks transaction status.
+///
+/// This struct controls how the signer polls Fireblocks for transaction
+/// completion, including timeout duration, polling interval, and callback
+/// function for status updates.
+///
+/// # Examples
+///
+/// ```
+/// use {fireblocks_solana_signer::PollConfig, std::time::Duration};
+///
+/// let config = PollConfig::builder()
+///     .timeout(Duration::from_secs(30))
+///     .interval(Duration::from_secs(2))
+///     .callback(|response| println!("Transaction status: {:?}", response))
+///     .build();
+/// ```
 #[derive(Clone, Builder)]
 pub struct PollConfig {
+    /// Maximum time to wait for transaction completion.
+    ///
+    /// If the transaction doesn't complete within this duration, polling will
+    /// stop and return a timeout error.
     pub timeout: Duration,
+
+    /// Interval between polling requests.
+    ///
+    /// This determines how frequently the signer checks the transaction status
+    /// with Fireblocks.
     pub interval: Duration,
+
+    /// Callback function called on each polling iteration.
+    ///
+    /// This function receives the current transaction response and can be used
+    /// for logging, monitoring, or other side effects during the polling
+    /// process.
     pub callback: fn(&crate::TransactionResponse),
 }
 
 impl Default for PollConfig {
+    /// Creates a default polling configuration.
+    ///
+    /// Default values:
+    /// - `timeout`: 15 seconds
+    /// - `interval`: 5 seconds
+    /// - `callback`: Logs transaction status using `tracing::info!`
     fn default() -> Self {
         Self {
             timeout: Duration::from_secs(15),
@@ -27,22 +98,88 @@ impl Default for PollConfig {
     }
 }
 
+/// A Solana signer implementation using Fireblocks as the backend signing
+/// service.
+///
+/// This struct implements the Solana [`Signer`] trait, allowing it to be used
+/// anywhere a Solana signer is required while leveraging Fireblocks' secure
+/// custody solution for private key management and transaction signing.
+///
+/// The signer handles the complete flow of:
+/// 1. Serializing Solana transactions
+/// 2. Sending them to Fireblocks for signing
+/// 3. Polling for completion
+/// 4. Returning the signed transaction
+///
+/// # Examples
+///
+/// ```no_run
+/// use {fireblocks_solana_signer::FireblocksSigner, solana_signer::Signer};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// // Create from environment variables
+/// let signer = FireblocksSigner::from_env(None)?;
+///
+/// // Get the public key
+/// let pubkey = signer.try_pubkey()?;
+/// println!("Signer public key: {}", pubkey);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, bon::Builder)]
 pub struct FireblocksSigner {
+    /// The Fireblocks vault ID containing the signing key.
     pub vault_id: String,
+
+    /// The asset type (SOL for mainnet, SOL_TEST for devnet/testnet).
     pub asset: Asset,
+
+    /// The public key associated with this signer.
     pub pk: Pubkey,
+
+    /// Configuration for polling transaction status.
     pub poll_config: PollConfig,
+
+    /// The Fireblocks client for API communication.
     client: Client,
 }
 
 impl Debug for FireblocksSigner {
+    /// Formats the signer for debugging, showing vault ID and public key.
+    ///
+    /// This implementation avoids exposing sensitive information like private
+    /// keys or API credentials in debug output.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("vault: {} [{}]", self.vault_id, self.pk))
     }
 }
 
 impl FireblocksSigner {
+    /// Signs a transaction message using Fireblocks.
+    ///
+    /// This method handles the complete signing flow:
+    /// 1. Deserializes the message into a versioned transaction
+    /// 2. Encodes the transaction as base64
+    /// 3. Sends it to Fireblocks for signing
+    /// 4. Polls for completion
+    /// 5. Returns the signature
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The serialized transaction message to sign
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`Result`] containing the [`Signature`] on success, or an
+    /// [`Error`] on failure.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - The message cannot be deserialized
+    /// - The Fireblocks API call fails
+    /// - Polling times out
+    /// - No signature is returned from Fireblocks
     #[tracing::instrument(level = "debug", skip(message))]
     fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
         let versioned_message: VersionedMessage = bincode::deserialize(message)
@@ -66,6 +203,58 @@ impl FireblocksSigner {
         })
     }
 
+    /// Creates a new [`FireblocksSigner`] from environment variables.
+    ///
+    /// This is the primary way to instantiate a signer, reading configuration
+    /// from environment variables as documented in the crate README.
+    ///
+    /// # Required Environment Variables
+    ///
+    /// - `FIREBLOCKS_VAULT`: Your Fireblocks vault ID
+    /// - `FIREBLOCKS_SECRET`: RSA private key of your API user
+    /// - `FIREBLOCKS_API_KEY`: UUID of your API user
+    /// - `FIREBLOCKS_ENDPOINT`: Fireblocks API endpoint URL
+    ///
+    /// # Optional Environment Variables
+    ///
+    /// - `FIREBLOCKS_TESTNET` or `FIREBLOCKS_DEVNET`: Set to use testnet asset
+    /// - `FIREBLOCKS_POLL_TIMEOUT`: Polling timeout in seconds (default: 60)
+    /// - `FIREBLOCKS_POLL_INTERVAL`: Polling interval in seconds (default: 5)
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Optional callback function for transaction status updates. If
+    ///   `None`, uses the default logging callback.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`Result`] containing the configured [`FireblocksSigner`] on
+    /// success.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - Required environment variables are missing
+    /// - The Fireblocks client cannot be created
+    /// - The vault address cannot be retrieved
+    /// - Environment variable values are invalid
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use fireblocks_solana_signer::FireblocksSigner;
+    ///
+    /// # fn main() -> anyhow::Result<()> {
+    /// // Use default callback
+    /// let signer = FireblocksSigner::from_env(None)?;
+    ///
+    /// // Use custom callback
+    /// let signer = FireblocksSigner::from_env(Some(|response| {
+    ///     println!("Custom callback: {:?}", response);
+    /// }))?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
         let vault = std::env::var("FIREBLOCKS_VAULT")?;
         let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
@@ -81,7 +270,6 @@ impl FireblocksSigner {
         let rsa_pem = key.as_bytes().to_vec();
         let client = ClientBuilder::new(&api, &rsa_pem)
             .with_url(&endpoint)
-            .with_user_agent("fireblocks-solana-signer for rust")
             .with_timeout(Duration::from_secs(15))
             .build()?;
 
@@ -117,11 +305,36 @@ impl FireblocksSigner {
     }
 }
 
+/// Implementation of the Solana [`Signer`] trait for [`FireblocksSigner`].
+///
+/// This implementation allows the [`FireblocksSigner`] to be used anywhere
+/// a Solana signer is required, providing seamless integration with the
+/// Solana ecosystem while using Fireblocks for secure key management.
 impl Signer for FireblocksSigner {
+    /// Returns the public key associated with this signer.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Pubkey)` containing the signer's public key, or a
+    /// [`solana_signer::SignerError`] if the public key cannot be retrieved.
     fn try_pubkey(&self) -> std::result::Result<Pubkey, solana_signer::SignerError> {
         Ok(self.pk)
     }
 
+    /// Signs a message using Fireblocks.
+    ///
+    /// This method implements the core signing functionality, delegating to
+    /// the internal [`sign_transaction`] method and converting errors to
+    /// the appropriate Solana signer error type.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The message bytes to sign
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Signature)` on successful signing, or a
+    /// [`solana_signer::SignerError`] on failure.
     fn try_sign_message(
         &self,
         message: &[u8],
@@ -130,6 +343,11 @@ impl Signer for FireblocksSigner {
             .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
     }
 
+    /// Indicates whether this signer requires user interaction.
+    ///
+    /// Returns `true` because Fireblocks signing may require approval
+    /// workflows or other interactive elements depending on the vault
+    /// configuration and transaction policies.
     fn is_interactive(&self) -> bool {
         true
     }

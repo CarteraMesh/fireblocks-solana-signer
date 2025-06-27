@@ -1,3 +1,17 @@
+//! Extensions for Solana versioned transactions.
+//!
+//! This module provides additional functionality for working with Solana's
+//! versioned transactions, particularly for partial signing scenarios and
+//! address lookup table support. These extensions are especially useful when
+//! working with multi-signature transactions or when you need to sign
+//! transactions in multiple steps.
+//!
+//! The main trait [`VersionedTransactionExtension`] extends
+//! [`VersionedTransaction`] with methods for creating unsigned transactions and
+//! performing partial signing operations.
+//!
+//! Credit: Shameless borrowed from <https://github.com/ifiokjr/wasm_solana/blob/main/crates/wasm_client_solana/src/extensions.rs>
+
 use {
     solana_message::{AddressLookupTableAccount, CompileError, VersionedMessage, v0},
     solana_pubkey::Pubkey,
@@ -7,13 +21,41 @@ use {
     solana_transaction::versioned::VersionedTransaction,
 };
 
-/// Add extensions which make it possible to partially sign a versioned
-/// transaction.
-/// Shameless borrowed from  https://github.com/ifiokjr/wasm_solana/blob/main/crates/wasm_client_solana/src/extensions.rs
+/// Extension trait for [`VersionedTransaction`] that adds support for partial
+/// signing and address lookup table operations.
+///
+/// This trait provides methods to create unsigned versioned transactions and
+/// sign them in multiple steps, which is particularly useful for
+/// multi-signature scenarios or when working with hardware wallets and custody
+/// solutions like Fireblocks.
 pub trait VersionedTransactionExtension {
-    /// Create a new unsigned transaction from the payer and instructions with a
-    /// recent blockhash. Under the hood this creates the message which needs to
-    /// be signed.
+    /// Creates a new unsigned versioned transaction using the v0 message
+    /// format.
+    ///
+    /// This method compiles instructions into a v0 message format that supports
+    /// address lookup tables, allowing for more compact transactions when
+    /// dealing with frequently used addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `payer` - The public key of the account that will pay for the
+    ///   transaction
+    /// * `instructions` - The instructions to include in the transaction
+    /// * `address_lookup_tables` - Address lookup tables to use for address
+    ///   compression
+    /// * `recent_blockhash` - A recent blockhash for the transaction
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`Result`] containing the unsigned [`VersionedTransaction`] on
+    /// success, or a [`CompileError`] if the message compilation fails.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - The instructions cannot be compiled into a valid message
+    /// - The address lookup tables are invalid
+    /// - The payer account is invalid
     fn new_unsigned_v0(
         payer: &Pubkey,
         instructions: &[Instruction],
@@ -21,28 +63,84 @@ pub trait VersionedTransactionExtension {
         recent_blockhash: Hash,
     ) -> Result<VersionedTransaction, CompileError>;
 
+    /// Creates a new unsigned versioned transaction from a
+    /// [`VersionedMessage`].
+    ///
+    /// This method creates a transaction with default (empty) signatures that
+    /// can be filled in later through signing operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The versioned message to wrap in a transaction
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`VersionedTransaction`] with empty signatures.
     fn new_unsigned(message: VersionedMessage) -> VersionedTransaction;
 
-    /// Attempt to sign this transaction with provided signers.
+    /// Attempts to sign the transaction with the provided signers.
+    ///
+    /// This method automatically determines the correct signature positions for
+    /// each signer and updates the transaction's signatures accordingly. If
+    /// a recent blockhash is provided and differs from the message's
+    /// current blockhash, the message will be updated and all existing
+    /// signatures cleared.
+    ///
+    /// # Arguments
+    ///
+    /// * `signers` - The signers to use for signing the transaction
+    /// * `recent_blockhash` - Optional recent blockhash to update the message
+    ///   with
+    ///
+    /// # Returns
+    ///
+    /// Returns a mutable reference to the transaction on success, or a
+    /// [`SignerError`] if signing fails.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - The signers' public keys don't match required signers in the message
+    /// - The signing operation fails
+    /// - The message format is invalid
     fn try_sign<T: Signers + ?Sized>(
         &mut self,
         signers: &T,
         recent_blockhash: Option<Hash>,
     ) -> Result<&mut Self, SignerError>;
 
-    /// Sign the transaction with a subset of required keys, returning any
-    /// errors.
+    /// Signs the transaction with a subset of required keys at specific
+    /// positions.
     ///
-    /// This places each of the signatures created from `keypairs` in the
-    /// corresponding position, as specified in the `positions` vector, in the
-    /// transactions [`signatures`] field. It does not verify that the signature
-    /// positions are correct.
+    /// This method provides fine-grained control over signature placement,
+    /// allowing you to specify exactly which signature positions should be
+    /// filled by which signers. This is useful for complex multi-signature
+    /// scenarios.
     ///
-    /// [`signatures`]: VersionedTransaction::signatures
+    /// # Arguments
+    ///
+    /// * `signers` - The signers to use for signing
+    /// * `positions` - The signature positions to fill (indices into the
+    ///   signatures array)
+    /// * `recent_blockhash` - Optional recent blockhash to update the message
+    ///   with
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or a [`SignerError`] if signing fails.
     ///
     /// # Errors
     ///
-    /// Returns an error if signing fails.
+    /// This method can fail if:
+    /// - The positions vector contains invalid indices
+    /// - The signing operation fails
+    /// - The number of signers doesn't match the number of positions
+    ///
+    /// # Safety
+    ///
+    /// This method does not verify that the signature positions are correct for
+    /// the provided signers. It's the caller's responsibility to ensure the
+    /// positions match the expected signers.
     fn try_sign_unchecked<T: Signers + ?Sized>(
         &mut self,
         signers: &T,
@@ -50,12 +148,36 @@ pub trait VersionedTransactionExtension {
         recent_blockhash: Option<Hash>,
     ) -> Result<(), SignerError>;
 
+    /// Gets the signature positions for a set of public keys.
+    ///
+    /// This method determines where each public key should place its signature
+    /// in the transaction's signature array based on the message's required
+    /// signers.
+    ///
+    /// # Arguments
+    ///
+    /// * `pubkeys` - The public keys to find positions for
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector where each element is either `Some(position)` if the
+    /// corresponding public key is a required signer, or `None` if it's not.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if the message format is invalid or corrupted.
     fn get_signing_keypair_positions(
         &self,
         pubkeys: &[Pubkey],
     ) -> Result<Vec<Option<usize>>, SignerError>;
 }
 
+/// Implementation of [`VersionedTransactionExtension`] for
+/// [`VersionedTransaction`].
+///
+/// This implementation provides all the extension methods for working with
+/// versioned transactions, including creation of unsigned transactions and
+/// partial signing support.
 impl VersionedTransactionExtension for VersionedTransaction {
     fn new_unsigned_v0(
         payer: &Pubkey,
@@ -70,7 +192,6 @@ impl VersionedTransactionExtension for VersionedTransaction {
         Ok(Self::new_unsigned(versioned_message))
     }
 
-    /// Create an unsigned transaction from a [`VersionedMessage`].
     fn new_unsigned(message: VersionedMessage) -> Self {
         let signatures =
             vec![Signature::default(); message.header().num_required_signatures as usize];
@@ -81,20 +202,6 @@ impl VersionedTransactionExtension for VersionedTransaction {
         }
     }
 
-    /// Sign the transaction with a subset of required keys, returning any
-    /// errors.
-    ///
-    /// Unlike [`VersionedTransaction::try_new`], this method does not require
-    /// all keypairs to be provided, allowing a transaction to be signed in
-    /// multiple steps.
-    ///
-    /// It is permitted to sign a transaction with the same keypair multiple
-    /// times.
-    ///
-    /// If `recent_blockhash` is different than recorded in the transaction
-    /// message's [`VersionedMessage::recent_blockhash()`] method, then the
-    /// message's `recent_blockhash` will be updated to the provided
-    /// `recent_blockhash`, and any prior signatures will be cleared.
     fn try_sign<T: Signers + ?Sized>(
         &mut self,
         keypairs: &T,
@@ -110,9 +217,6 @@ impl VersionedTransactionExtension for VersionedTransaction {
         Ok(self)
     }
 
-    /// Get the positions of the pubkeys in
-    /// [`VersionedMessage::static_account_keys`] associated with
-    /// signing keypairs.
     fn get_signing_keypair_positions(
         &self,
         pubkeys: &[Pubkey],
@@ -144,7 +248,7 @@ impl VersionedTransactionExtension for VersionedTransaction {
         if recent_blockhash != message_blockhash {
             self.message.set_recent_blockhash(recent_blockhash);
 
-            // reset signatures if blockhash has changed
+            // Reset signatures if blockhash has changed
             self.signatures
                 .iter_mut()
                 .for_each(|signature| *signature = Signature::default());
