@@ -46,4 +46,10 @@ pub enum Error {
 
     #[error("pubkey on lookuptable is invalid")]
     InvalidPubkey,
+
+    #[error(transparent)]
+    EnvMissing(#[from] std::env::VarError),
+
+    #[error("Unknown asset {0}")]
+    UnknownAsset(String),
 }

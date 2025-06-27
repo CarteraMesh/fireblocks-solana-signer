@@ -1,5 +1,5 @@
 use {
-    fireblocks_solana_signer::{Client, ClientBuilder, FireblocksSigner, PollConfig},
+    fireblocks_solana_signer::{Client, ClientBuilder, FireblocksSigner, PollConfig, SOL_TEST},
     solana_rpc_client::rpc_client::RpcClient,
     std::{sync::Arc, time::Duration},
     tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
@@ -55,7 +55,7 @@ pub fn signer() -> anyhow::Result<(FireblocksSigner, Arc<RpcClient>)> {
         .client(client)
         .pk(pk)
         .vault_id("0".to_string())
-        .asset("SOL_TEST".to_string())
+        .asset(SOL_TEST)
         .poll_config(poll)
         .build();
 

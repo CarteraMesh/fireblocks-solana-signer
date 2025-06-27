@@ -17,7 +17,10 @@ use {
     serde::de::DeserializeOwned,
     solana_pubkey::Pubkey,
     solana_signature::Signature,
-    std::{fmt::Debug, time::Duration},
+    std::{
+        fmt::{Debug, Display},
+        time::Duration,
+    },
 };
 
 #[derive(Clone)]
@@ -142,7 +145,7 @@ impl Client {
     }
 
     #[tracing::instrument(level = "debug")]
-    pub fn address(&self, vault: &str, asset: &str) -> Result<Pubkey> {
+    pub fn address(&self, vault: &str, asset: impl AsRef<str> + Display + Debug) -> Result<Pubkey> {
         let path = format!("/v1/vault/accounts/{vault}/{asset}/addresses_paginated");
         let url = self.build_url(&path);
         let signed = self.jwt.sign(&path, &[])?;
@@ -156,7 +159,7 @@ impl Client {
     #[tracing::instrument(level = "debug", skip(base64_tx))]
     pub fn program_call(
         &self,
-        asset_id: &str,
+        asset_id: impl AsRef<str> + Debug,
         vault_id: &str,
         base64_tx: String,
     ) -> Result<CreateTransactionResponse> {
@@ -164,7 +167,7 @@ impl Client {
         let url = self.build_url(&path);
         let extra = ExtraParameters::new(base64_tx);
         let source = SourceTransferPeerPath::new(vault_id.to_string());
-        let tx = TransactionRequest::new(asset_id.to_string(), source, extra);
+        let tx = TransactionRequest::new(asset_id.as_ref().to_string(), source, extra);
         let body = serde_json::to_vec(&tx)?;
         let signed = self.jwt.sign(&path, &body)?;
         let req = self
