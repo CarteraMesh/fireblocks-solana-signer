@@ -84,3 +84,14 @@ impl Signer for FireblocksSigner {
         true
     }
 }
+
+#[cfg(test)]
+mod test {
+    use {crate::PollConfig, std::time::Duration};
+
+    #[test]
+    fn test_poll() {
+        let poll = PollConfig::default();
+        assert_eq!(poll.timeout, Duration::from_secs(15));
+    }
+}
