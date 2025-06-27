@@ -1,0 +1,30 @@
+use fireblocks_solana_signer::FireblocksSigner;
+mod common;
+use {
+    solana_message::Message,
+    solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
+    solana_sdk::instruction::Instruction,
+    solana_transaction::Transaction,
+    std::sync::Arc,
+};
+
+fn memo(message: &str) -> Instruction {
+    Instruction {
+        program_id: spl_memo::id(),
+        accounts: vec![],
+        data: message.as_bytes().to_vec(),
+    }
+}
+
+fn main() -> anyhow::Result<()> {
+    common::setup();
+    let tuple = common::signer()?;
+    let signer: FireblocksSigner = tuple.0;
+    let rpc: Arc<RpcClient> = tuple.1;
+    let hash = rpc.get_latest_blockhash()?;
+    let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+    let mut tx = Transaction::new_unsigned(message);
+    tx.try_sign(&[&signer], hash)?;
+    println!("sig {}", tx.get_signature());
+    Ok(())
+}
