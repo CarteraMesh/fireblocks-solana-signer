@@ -34,12 +34,12 @@ name: check
 jobs:
   fmt:
     runs-on: ubicloud-standard-2
-    name: stable / fmt
+    name: nightly fmt
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Install nightyl
+      - name: Install nightyly
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
