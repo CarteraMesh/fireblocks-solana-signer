@@ -46,7 +46,7 @@ use {
 ///
 /// Clients are created using the [`ClientBuilder`] which allows configuration
 /// of timeouts, endpoints, and authentication credentials.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Client {
     /// The base URL for the Fireblocks API endpoint.
     url: String,

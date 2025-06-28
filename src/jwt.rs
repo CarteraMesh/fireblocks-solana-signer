@@ -12,11 +12,52 @@ use {
 };
 
 const EXPIRY: u64 = 55;
+// Default RSA private key for development/testing purposes
+const DEFAULT_RSA_PRIVATE_KEY: &str = r#"-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDDlZwIUVmNEuOC
+3qx9Obj56/5j9m2rlP7TRCVFKkLCABYMkeJN+hinJhvCkedxN3jqdZUzK0VvImYG
+kvOxxyiUmdqEkMUK4ZDmnpfzTI4q3dHvMu9QSd5tlAdAaaFVF9vkSisXBVW0u3Jy
+MtAHBPYmbq0n9W1KPz56i4aEItLNjFnYjqu8IGh1RMIM9zcp83JIoE2ggYBQpHSa
+ZHwU6UozonrEgTf7UQYv7PrWSXODJJ6d1eb6dGrVKFhAFppwAtIKFA3EWiFQgiHJ
+UdeMAKB0bc2Lt7QYSe8NfQ0Hn50XrZfcdigwUUzytaGAaWPQSMP+/uIGqI5CfV3D
+z6s+uFpDAgMBAAECggEACn1st/l8/xcDQtKkl7bP1/+zTjM6YJiGLliaUyJYIEWW
+6Set5pbCWbyugnoG2sip4JFb5jms6LAEntek4GUZJRc3ZCLLnrDIb8YTykXR3jS1
+fMnTkg/UMTZeSTMhJwo3jf/4Xay4kw/2rG9TPv0iIp+PA/Si3veTZ0kydsXTXpjP
+WQknegze2qJrW35Lj4b5LNTe++p3+Gcv1jyzOkr9jX3FG7OlcdGsg0FH2S7N5Rd/
+YHvKO6LUxRk+hvjG+XV2tYlrGm3Hc1M9u3qSLlvx0IABN0d5yNQHqDueIfIjCIXj
+GihPSY2Rp5G32slAAw54ZxGIB+i/ggdIyqnjOVeNoQKBgQD4+ZAK+Ma/ZHH/M0/o
+Llw4ICKIInjnqcgcEyhbL0la1/PzF2gdhgYAvvVNzvaHl/LtTS+2W2yJWuzzUstC
+lgK5n8+AySmEg2kDM1fhYgkZG8uRRNpN7Lf8tQc5ZmC0XNKJjqOrHpxPJOrWSYSP
+fKcYQoRe0ty/zt+Vm2KQ7+ga8QKBgQDJGmNQx7HdijZSQqC/9MdRL9gFq/TwtqdO
+vPHhUPYa4DXOSaERUgjLQTSgr7vdbtfuWTsmP4uHdrwvrAQLuexF7yywPg6b/hAV
+k0Jz8ps9UV0jyPaFZHbkH9nL8QxwXZC5FrtxD+WN7QJn1irC+Hwz0VAeJ25VkaNB
+3KH8bjhAcwKBgQDbz1lAlorBhuiuKpstnWCFnLlf/y9HODoXr0I93u2ganBR+iRN
+jHnYRr9DxqkY5SnwH+kz0ltsmP4BhOM3EkGtqE4GoZMqDuqzjKzVqzvlEwkSY/to
+OMnnLdwG7UALfLfUAj61YP0XUrySG64REDhlzrQXE4sZPIdhCiJnW6dLwQKBgA+x
+SXKyQoThFiARJu4TscH6E8dNhc2K0z9nqxBD+xBZ0pkIUdNCLYF+0xZ+4BAFaEAn
+ImB3sPGfKEwoBiDMH03NvhT6orU1fBfS5+qYUdjVEomKUwJRtp1ShvJNGwVhp7tp
+tLK75NPQXNGxeqDANyDsAm538TooJS8sgk9qYmVVAoGBAKWa2FZqQ5KX/8XNKf74
+jEPCF1kvsYtTk1mCSf5mnW0pLa6LZ5oiP1tEs/7MVMYSNRFFGmrBpbOCRCOBwVpn
+6FEj7Wk6LKikJpGPITG+IKCs+yIreYp5aw7HUUBuF+meqhpka6B8+cFnyoIVdxnW
+ZfPTMjUf7hKMYnp7Cf5KCdC1
+-----END PRIVATE KEY-----"#;
 
 #[derive(Clone)]
 pub struct JwtSigner {
     key: EncodingKey,
     api_key: String,
+}
+
+impl Default for JwtSigner {
+    fn default() -> Self {
+        let key = EncodingKey::from_rsa_pem(DEFAULT_RSA_PRIVATE_KEY.as_bytes())
+            .expect("Failed to create default RSA encoding key");
+
+        Self {
+            key,
+            api_key: String::new(),
+        }
+    }
 }
 
 impl JwtSigner {
