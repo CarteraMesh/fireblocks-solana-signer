@@ -18,7 +18,7 @@ rustls-tls = ["reqwest/rustls-tls"]
 
 [dependencies]
 base64 = { version = "0.22" }
-bincode = "1"
+bincode = "2"
 jsonwebtoken = { version = "9" }
 http = { version = "1" }
 ed25519-dalek = "=1.0.1"
