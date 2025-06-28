@@ -62,7 +62,7 @@ fn create_lookup() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let pk = signer.pubkey();
-    println!("using pubkey {}", pk);
+    println!("using pubkey {pk}");
     let hash = rpc.get_latest_blockhash()?;
     let (lookup_create, account) = lookup_table_instructions(&rpc, pk)?;
     println!("Creating lookup table {account}");
@@ -83,7 +83,7 @@ fn append_lookup() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let pk = signer.pubkey();
-    println!("using pubkey {}", pk);
+    println!("using pubkey {pk}");
     let hash = rpc.get_latest_blockhash()?;
     let extend = solana_sdk::address_lookup_table::instruction::extend_lookup_table(
         LOOKUP,

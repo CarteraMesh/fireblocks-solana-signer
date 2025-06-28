@@ -4,9 +4,10 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub enum Asset {
     Sol,
+    #[default]
     SolTest,
 }
 
@@ -73,6 +74,7 @@ mod tests {
 
         assert_eq!(SOL.to_string(), "SOL");
         assert_eq!(SOL_TEST.to_string(), "SOL_TEST");
+        assert_eq!(SOL_TEST, Asset::default());
         Ok(())
     }
 }

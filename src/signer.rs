@@ -31,72 +31,20 @@
 //! # }
 //! ```
 
+mod keypair;
+mod poll;
 use {
     crate::{Asset, Client, ClientBuilder, Error, Result, VersionedTransactionExtension},
     base64::prelude::*,
-    bon::Builder,
     solana_message::VersionedMessage,
     solana_pubkey::Pubkey,
+    solana_sdk::signature::Keypair,
     solana_signature::Signature,
     solana_signer::Signer,
     solana_transaction::versioned::VersionedTransaction,
-    std::{fmt::Debug, time::Duration},
+    std::{fmt::Debug, sync::Arc, time::Duration},
 };
-
-/// Configuration for polling Fireblocks transaction status.
-///
-/// This struct controls how the signer polls Fireblocks for transaction
-/// completion, including timeout duration, polling interval, and callback
-/// function for status updates.
-///
-/// # Examples
-///
-/// ```
-/// use {fireblocks_solana_signer::PollConfig, std::time::Duration};
-///
-/// let config = PollConfig::builder()
-///     .timeout(Duration::from_secs(30))
-///     .interval(Duration::from_secs(2))
-///     .callback(|response| println!("Transaction status: {:?}", response))
-///     .build();
-/// ```
-#[derive(Clone, Builder)]
-pub struct PollConfig {
-    /// Maximum time to wait for transaction completion.
-    ///
-    /// If the transaction doesn't complete within this duration, polling will
-    /// stop and return a timeout error.
-    pub timeout: Duration,
-
-    /// Interval between polling requests.
-    ///
-    /// This determines how frequently the signer checks the transaction status
-    /// with Fireblocks.
-    pub interval: Duration,
-
-    /// Callback function called on each polling iteration.
-    ///
-    /// This function receives the current transaction response and can be used
-    /// for logging, monitoring, or other side effects during the polling
-    /// process.
-    pub callback: fn(&crate::TransactionResponse),
-}
-
-impl Default for PollConfig {
-    /// Creates a default polling configuration.
-    ///
-    /// Default values:
-    /// - `timeout`: 15 seconds
-    /// - `interval`: 5 seconds
-    /// - `callback`: Logs transaction status using `tracing::info!`
-    fn default() -> Self {
-        Self {
-            timeout: Duration::from_secs(15),
-            interval: Duration::from_secs(5),
-            callback: |t| tracing::info!("{}", t),
-        }
-    }
-}
+pub use {keypair::keypair_from_seed, poll::*};
 
 /// A Solana signer implementation using Fireblocks as the backend signing
 /// service.
@@ -126,7 +74,7 @@ impl Default for PollConfig {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, bon::Builder)]
+#[derive(Clone, Default, bon::Builder)]
 pub struct FireblocksSigner {
     /// The Fireblocks vault ID containing the signing key.
     pub vault_id: String,
@@ -139,6 +87,8 @@ pub struct FireblocksSigner {
 
     /// Configuration for polling transaction status.
     pub poll_config: PollConfig,
+
+    pub keypair: Option<Arc<Keypair>>,
 
     /// The Fireblocks client for API communication.
     client: Client,
@@ -339,8 +289,12 @@ impl Signer for FireblocksSigner {
         &self,
         message: &[u8],
     ) -> std::result::Result<Signature, solana_signer::SignerError> {
-        self.sign_transaction(message)
-            .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
+        match &self.keypair {
+            Some(kp) => kp.try_sign_message(message),
+            None => self
+                .sign_transaction(message)
+                .map_err(|e| solana_signer::SignerError::Custom(format!("{e}"))),
+        }
     }
 
     /// Indicates whether this signer requires user interaction.

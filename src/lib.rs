@@ -191,4 +191,25 @@ mod test {
         let _ = FireblocksSigner::from_env(Some(|t| println!("{t}")))?;
         Ok(())
     }
+
+    #[test]
+    fn test_keypair() -> anyhow::Result<()> {
+        setup();
+        let (_, rpc) = signer()?;
+        let signer = FireblocksSigner::new();
+        let hash = rpc.get_latest_blockhash()?;
+        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_sign(&[&signer], hash)?;
+        tracing::info!("sig {}", tx.get_signature());
+
+        let base64 = signer.to_base58_string();
+        let from_base64 = FireblocksSigner::from_base58_string(&base64);
+        assert_eq!(signer.pk, from_base64.pk);
+        let b = signer.to_bytes();
+        let from_b = FireblocksSigner::from_bytes(&b)?;
+        assert_eq!(signer.pk, from_b.pk);
+
+        Ok(())
+    }
 }
