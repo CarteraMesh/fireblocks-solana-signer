@@ -56,7 +56,7 @@ const KEYPAIR_LENGTH: usize = 64;
 /// # Example
 ///
 /// ```rust,no_run
-/// use fireblocks_solana_signer::signer::keypair::keypair_from_seed;
+/// use fireblocks_solana_signer::keypair_from_seed;
 ///
 /// let seed = b"my_seed_bytes_here_exactly_32_bytes!";
 /// let signer = keypair_from_seed(seed).expect("Failed to create signer from seed");
@@ -80,7 +80,7 @@ impl FireblocksSigner {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use fireblocks_solana_signer::FireblocksSigner;
+    /// use {fireblocks_solana_signer::FireblocksSigner, solana_signer::Signer};
     ///
     /// let signer = FireblocksSigner::new();
     /// println!("Public key: {}", signer.pubkey());
@@ -151,6 +151,7 @@ impl FireblocksSigner {
     /// }
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ed25519_dalek::SignatureError> {
+        #[allow(deprecated)]
         let kp = Keypair::from_bytes(bytes)?;
         Ok(Self::new_with_keypair(kp))
     }
