@@ -42,8 +42,8 @@ bon = "3.6.4"
 
 
 [dev-dependencies]
-anyhow = "*"
-dotenvy= "*"
+anyhow = "1"
+dotenvy= "0.15"
 spl-memo = { version = "6" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
