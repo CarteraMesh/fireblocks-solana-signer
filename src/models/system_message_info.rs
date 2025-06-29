@@ -32,3 +32,16 @@ impl Default for Type {
         Self::Warn
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    #[test]
+    fn test_sys_message() {
+        assert_eq!(Type::default(), Type::Warn);
+        let sys = SystemMessageInfo::new();
+        assert_eq!(None, sys.r#type);
+        assert_eq!(None, sys.message);
+    }
+}

@@ -19,3 +19,18 @@ impl Default for TransferPeerPathType {
         Self::VaultAccount
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    #[test]
+    fn test_peer_path() {
+        assert_eq!(
+            TransferPeerPathType::default(),
+            TransferPeerPathType::VaultAccount
+        );
+        let op = format!("{}", TransferPeerPathType::VaultAccount);
+        assert_eq!("VAULT_ACCOUNT", op);
+    }
+}

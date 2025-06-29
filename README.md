@@ -4,7 +4,7 @@
     <img src="https://docs.rs/fireblocks-solana-signer/badge.svg" alt="docs" height="25">
   </a>
   <a href="https://github.com/CarteraMesh/fireblocks-solana-signer/actions">
-    <img src="https://github.com/CarteraMesh/fireblocks-solana-signer/workflows/Continuous%20integration/badge.svg" alt="build" height="25">
+    <img src="https://github.com/CarteraMesh/fireblocks-solana-signer/actions/workflows/test.yml/badge.svg" alt="build" height="25">
   </a>
   <a href="https://deps.rs/repo/github/CarteraMesh/fireblocks-solana-signer">
     <img src="https://deps.rs/repo/github/CarteraMesh/fireblocks-solana-signer/status.svg" alt="deps" height="25">
