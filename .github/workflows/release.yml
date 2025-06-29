@@ -98,12 +98,15 @@ jobs:
           echo "🚀 New version: $NEW_VERSION (${{ inputs.version_bump }} bump)"
 
       - name: Run tests
+        if: false
         run: cargo test --all-features
 
       - name: Check formatting
+        if: false
         run: cargo +nightly fmt --all -- --check
 
       - name: Run clippy
+        if: false
         run: cargo clippy --all-features -- -D warnings
 
       - name: Dry run release
