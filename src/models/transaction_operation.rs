@@ -19,3 +19,18 @@ impl Default for TransactionOperation {
         Self::ProgramCall
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    #[test]
+    fn test_tx_op() {
+        assert_eq!(
+            TransactionOperation::default(),
+            TransactionOperation::ProgramCall
+        );
+        let op = format!("{}", TransactionOperation::default());
+        assert_eq!("PROGRAM_CALL", op);
+    }
+}

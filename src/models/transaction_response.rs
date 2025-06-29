@@ -137,3 +137,126 @@ impl TryFrom<TransactionResponse> for Signature {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use {super::*, crate::models::TransactionStatus};
+
+    #[test]
+    fn test_transaction_response_default() {
+        let default_response = TransactionResponse::default();
+
+        assert_eq!(default_response.id, String::default());
+        assert_eq!(default_response.external_tx_id, None);
+        assert_eq!(default_response.status, TransactionStatus::default());
+        assert_eq!(default_response.sub_status, None);
+        assert_eq!(default_response.tx_hash, None);
+        assert_eq!(default_response.note, None);
+        assert_eq!(default_response.asset_id, String::default());
+        assert_eq!(default_response.source_address, None);
+        assert_eq!(default_response.tag, None);
+        assert_eq!(default_response.created_at, None);
+        assert_eq!(default_response.last_updated, None);
+        assert_eq!(default_response.created_by, None);
+        assert_eq!(default_response.signed_by, None);
+        assert_eq!(default_response.rejected_by, None);
+        assert_eq!(default_response.customer_ref_id, None);
+        assert_eq!(default_response.num_of_confirmations, None);
+        assert_eq!(default_response.system_messages, None);
+        assert_eq!(default_response.error_description, None);
+    }
+
+    #[test]
+    fn test_address_type_default() {
+        let default_address_type = AddressType::default();
+        assert_eq!(default_address_type, AddressType::Empty);
+    }
+
+    #[test]
+    fn test_try_from_transaction_response_success() {
+        // Test successful conversion with valid signature
+        let response = TransactionResponse {
+        tx_hash: Some("5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW".to_string()),
+        ..Default::default()
+        };
+
+        let signature_result: Result<Signature, crate::Error> = response.try_into();
+        assert!(signature_result.is_ok());
+    }
+
+    #[test]
+    fn test_try_from_transaction_response_no_hash() {
+        // Test error when tx_hash is None
+        let response = TransactionResponse::default(); // tx_hash is None by default
+
+        let signature_result: Result<Signature, crate::Error> = response.try_into();
+        assert!(signature_result.is_err());
+
+        if let Err(crate::Error::InvalidMessage(msg)) = signature_result {
+            assert_eq!(msg, "Transaction response does not contain a tx_hash");
+        } else {
+            panic!("Expected InvalidMessage error for missing tx_hash");
+        }
+    }
+
+    #[test]
+    fn test_try_from_transaction_response_invalid_signature() {
+        // Test error when tx_hash contains invalid signature format
+        let response = TransactionResponse {
+            tx_hash: Some("invalid_signature_format".to_string()),
+            ..Default::default()
+        };
+
+        let signature_result: Result<Signature, crate::Error> = response.try_into();
+        assert!(signature_result.is_err());
+
+        if let Err(crate::Error::InvalidMessage(msg)) = signature_result {
+            assert_eq!(msg, "Invalid signature format: invalid_signature_format");
+        } else {
+            panic!("Expected InvalidMessage error for invalid signature format");
+        }
+    }
+
+    #[test]
+    fn test_display_formatting() {
+        let mut response = TransactionResponse {
+            id: "test_id".to_string(),
+            ..Default::default()
+        };
+
+        // Test display without tx_hash
+        let display_str = format!("{response}");
+        assert!(display_str.contains("txid: test_id"));
+        assert!(display_str.contains("hash: N/A"));
+
+        // Test display with tx_hash
+        response.tx_hash = Some("test_hash".to_string());
+        let display_str = format!("{response}");
+        assert!(display_str.contains("txid: test_id"));
+        assert!(display_str.contains("hash: test_hash"));
+    }
+
+    #[test]
+    fn test_address_type_variants() {
+        // Test all AddressType variants
+        assert_eq!(AddressType::Empty, AddressType::default());
+        assert_ne!(AddressType::Whitelisted, AddressType::default());
+        assert_ne!(AddressType::OneTime, AddressType::default());
+
+        // Test ordering
+        assert!(AddressType::Empty < AddressType::Whitelisted);
+        assert!(AddressType::Whitelisted < AddressType::OneTime);
+    }
+
+    // #[test]
+    // fn test_transaction_response_clone() {
+    //     let mut original = TransactionResponse::default();
+    //     original.id = "test_id".to_string();
+    //     original.tx_hash = Some("test_hash".to_string());
+    //
+    //     let cloned = original.clone();
+    //     assert_eq!(original, cloned);
+    //     assert_eq!(original.id, cloned.id);
+    //     assert_eq!(original.tx_hash, cloned.tx_hash);
+    // }
+}
