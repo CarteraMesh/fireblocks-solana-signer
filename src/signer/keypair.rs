@@ -34,7 +34,7 @@
 //! broadcasted** to the Solana network upon signing. See the main crate
 //! documentation for more details on this behavior.
 
-use {super::FireblocksSigner, solana_sdk::signature::Keypair, solana_signer::Signer};
+use {super::FireblocksSigner, solana_keypair::Keypair, solana_signer::Signer};
 
 /// The length of a keypair in bytes (32 bytes secret key + 32 bytes public key)
 const KEYPAIR_LENGTH: usize = 64;
@@ -62,7 +62,7 @@ const KEYPAIR_LENGTH: usize = 64;
 /// let signer = keypair_from_seed(seed).expect("Failed to create signer from seed");
 /// ```
 pub fn keypair_from_seed(seed: &[u8]) -> Result<FireblocksSigner, Box<dyn std::error::Error>> {
-    let kp = solana_sdk::signature::keypair_from_seed(seed)?;
+    let kp = solana_keypair::keypair_from_seed(seed)?;
     Ok(FireblocksSigner::new_with_keypair(kp))
 }
 
