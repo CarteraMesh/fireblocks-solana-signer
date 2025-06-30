@@ -27,7 +27,7 @@ serde_json = { version = "1" }
 sha2 = { version = "0.10" }
 solana-account-decoder = { version = ">=2.1, <2.3" }
 solana-pubkey =  { version = ">=2.1, <2.3", features = ["serde"]}
-solana-rpc-client = { version = ">=2.1, <2.3", default-features = false }
+solana-rpc-client = { version = ">=2.1, <2.4", default-features = false }
 solana-rpc-client-api =  { version = ">=2.1, <2.3"}
 solana-signer = { version = ">=2.1, <2.3"} 
 solana-signature =  { version = ">=2.1, <2.3"} 
