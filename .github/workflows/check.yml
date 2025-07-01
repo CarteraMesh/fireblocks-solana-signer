@@ -73,7 +73,7 @@ jobs:
   semver:
     runs-on: ubicloud-standard-2
     name: semver
-    if: false
+    if: true
     steps:
       - uses: actions/checkout@v4
         with:
