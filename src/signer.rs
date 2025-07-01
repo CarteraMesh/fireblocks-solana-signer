@@ -36,9 +36,9 @@ mod poll;
 use {
     crate::{Asset, Client, ClientBuilder, Error, Result, VersionedTransactionExtension},
     base64::prelude::*,
+    solana_keypair::Keypair,
     solana_message::VersionedMessage,
     solana_pubkey::Pubkey,
-    solana_sdk::signature::Keypair,
     solana_signature::Signature,
     solana_signer::Signer,
     solana_transaction::versioned::VersionedTransaction,
