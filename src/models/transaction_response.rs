@@ -85,7 +85,7 @@ pub struct TransactionResponse {
     /// until the transaction will be considered completed according to the
     /// confirmation policy.
     #[serde(rename = "numOfConfirmations", skip_serializing_if = "Option::is_none")]
-    pub num_of_confirmations: Option<u32>,
+    pub num_of_confirmations: Option<i32>,
     #[serde(rename = "systemMessages", skip_serializing_if = "Option::is_none")]
     pub system_messages: Option<models::SystemMessageInfo>,
     /// `subStatus` =  'SMART_CONTRACT_EXECUTION_FAILED'.
