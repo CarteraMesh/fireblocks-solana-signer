@@ -313,7 +313,14 @@ impl Client {
             return Err(crate::Error::FireblocksServerError(body));
         }
 
-        Ok(serde_json::from_str(&body)?)
+        tracing::trace!("body response: {body}");
+        let result: serde_json::Result<T> = serde_json::from_str(&body);
+        match result {
+            Ok(r) => Ok(r),
+            Err(e) => Err(crate::Error::JsonParseErr(format!(
+                "Error {e}\nFailed to parse\n{body}"
+            ))),
+        }
     }
 
     /// Retrieves the public key address for a specific vault and asset.
