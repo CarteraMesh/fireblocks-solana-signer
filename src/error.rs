@@ -32,6 +32,9 @@ pub enum Error {
     #[error("{0}")]
     FireblocksServerError(String),
 
+    #[error("{0}")]
+    JsonParseErr(String),
+
     #[error(transparent)]
     JsonErr(#[from] serde_json::Error),
 
