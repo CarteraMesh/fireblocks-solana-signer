@@ -149,7 +149,13 @@ impl FireblocksSigner {
             self.poll_config.callback,
         )?;
         sig.ok_or_else(|| {
-            crate::Error::FireblocksNoSig(format!("No Signature available for txid {result}"))
+            crate::Error::FireblocksNoSig(format!(
+                "No Signature available for txid {result} {}",
+                result
+                    .error_description
+                    .as_ref()
+                    .map_or("unknown error", |v| v)
+            ))
         })
     }
 
