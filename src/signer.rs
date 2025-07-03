@@ -17,7 +17,7 @@
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Create signer from environment variables
-//! let signer = FireblocksSigner::from_env(None)?;
+//! let signer = FireblocksSigner::try_from_env(None)?;
 //!
 //! // Create and sign a transaction
 //! let instruction = Instruction {
@@ -66,7 +66,7 @@ pub use {keypair::keypair_from_seed, poll::*};
 ///
 /// # fn main() -> anyhow::Result<()> {
 /// // Create from environment variables
-/// let signer = FireblocksSigner::from_env(None)?;
+/// let signer = FireblocksSigner::try_from_env(None)?;
 ///
 /// // Get the public key
 /// let pubkey = signer.try_pubkey()?;
@@ -202,16 +202,16 @@ impl FireblocksSigner {
     ///
     /// # fn main() -> anyhow::Result<()> {
     /// // Use default callback
-    /// let signer = FireblocksSigner::from_env(None)?;
+    /// let signer = FireblocksSigner::try_from_env(None)?;
     ///
     /// // Use custom callback
-    /// let signer = FireblocksSigner::from_env(Some(|response| {
+    /// let signer = FireblocksSigner::try_from_env(Some(|response| {
     ///     println!("Custom callback: {:?}", response);
     /// }))?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+    pub fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
         let vault = std::env::var("FIREBLOCKS_VAULT")?;
         let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
             || std::env::var("FIREBLOCKS_DEVNET").is_ok()

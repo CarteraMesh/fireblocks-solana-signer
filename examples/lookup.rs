@@ -55,7 +55,7 @@ pub fn lookup_table_instructions(
 
 #[allow(dead_code)]
 fn create_lookup() -> anyhow::Result<()> {
-    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let signer: FireblocksSigner = FireblocksSigner::try_from_env(None)?;
     let rpc = RpcClient::new(
         std::env::var("RPC_URL")
             .ok()
@@ -76,7 +76,7 @@ fn create_lookup() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn append_lookup() -> anyhow::Result<()> {
-    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let signer: FireblocksSigner = FireblocksSigner::try_from_env(None)?;
     let rpc = RpcClient::new(
         std::env::var("RPC_URL")
             .ok()
