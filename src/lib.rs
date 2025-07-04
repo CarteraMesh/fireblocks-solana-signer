@@ -187,8 +187,8 @@ mod test {
     #[test]
     fn test_env() -> anyhow::Result<()> {
         setup();
-        let _ = FireblocksSigner::from_env(None)?;
-        let _ = FireblocksSigner::from_env(Some(|t| println!("{t}")))?;
+        let _ = FireblocksSigner::try_from_env(None)?;
+        let _ = FireblocksSigner::try_from_env(Some(|t| println!("{t}")))?;
         Ok(())
     }
 

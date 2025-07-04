@@ -74,7 +74,7 @@ fn memo(message: &str) -> Instruction {
 }
 
 fn main() -> anyhow::Result<()> {
-    let signer: FireblocksSigner = FireblocksSigner::from_env(None)?;
+    let signer: FireblocksSigner = FireblocksSigner::try_from_env(None)?;
     let rpc = RpcClient::new(
         std::env::var("RPC_URL")
             .ok()
