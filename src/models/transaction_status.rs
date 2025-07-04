@@ -66,3 +66,44 @@ impl Default for TransactionStatus {
         Self::Submitted
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transaction_status_display() {
+        // Test all variants of TransactionStatus to ensure Display works correctly
+        let test_cases = [
+            (TransactionStatus::Submitted, "SUBMITTED"),
+            (
+                TransactionStatus::PendingAmlScreening,
+                "PENDING_AML_SCREENING",
+            ),
+            (TransactionStatus::PendingEnrichment, "PENDING_ENRICHMENT"),
+            (
+                TransactionStatus::PendingAuthorization,
+                "PENDING_AUTHORIZATION",
+            ),
+            (TransactionStatus::Queued, "QUEUED"),
+            (TransactionStatus::PendingSignature, "PENDING_SIGNATURE"),
+            (
+                TransactionStatus::Pending3RdPartyManualApproval,
+                "PENDING_3RD_PARTY_MANUAL_APPROVAL",
+            ),
+            (TransactionStatus::Pending3RdParty, "PENDING_3RD_PARTY"),
+            (TransactionStatus::Broadcasting, "BROADCASTING"),
+            (TransactionStatus::Completed, "COMPLETED"),
+            (TransactionStatus::Confirming, "CONFIRMING"),
+            (TransactionStatus::Cancelling, "CANCELLING"),
+            (TransactionStatus::Cancelled, "CANCELLED"),
+            (TransactionStatus::Blocked, "BLOCKED"),
+            (TransactionStatus::Rejected, "REJECTED"),
+            (TransactionStatus::Failed, "FAILED"),
+        ];
+
+        for (status, expected) in test_cases {
+            assert_eq!(status.to_string(), expected);
+        }
+    }
+}
