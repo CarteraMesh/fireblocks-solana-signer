@@ -1,6 +1,6 @@
 [package]
 name = "fireblocks-solana-signer"
-version = "1.0.4"
+version = "1.0.5-rc-f0b2256"
 edition = "2024"
 description = "Implementation of a Solana Signer using Fireblocks as backend signer"
 license = "MIT"
