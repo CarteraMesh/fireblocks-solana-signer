@@ -44,10 +44,11 @@ jobs:
         with:
           components: rustfmt
       - name: cargo fmt --check
-        run: cargo +nightly fmt --check
+        run: |
+            cargo +nightly fmt --check --all
   clippy:
     runs-on: ubicloud-standard-2
-    name: ${{ matrix.toolchain }} / clippy
+    name: ${{ matrix.toolchain }} / clippy / ${{ matrix.features }}
     permissions:
       contents: read
       checks: write
@@ -56,6 +57,9 @@ jobs:
       matrix:
         # Get early warning of new lints which are regularly introduced in beta channels.
         toolchain: [stable, beta]
+        features:
+          - "default"
+          - "tokio"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,25 +69,24 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
-      - name: ${{ matrix.toolchain }} cargo clippy 
+      - name: ${{ matrix.toolchain }} cargo clippy (${{ matrix.features }})
         uses: giraffate/clippy-action@v1
         with:
           reporter: 'github-pr-check'
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          clippy_flags: ${{ matrix.features != 'default' && format('--features {0}', matrix.features) || '' }}
   semver:
     runs-on: ubicloud-standard-2
     name: semver
     if: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@v2
+        # with:
+          # feature-group: ${{ matrix.features != 'default' && matrix.features || 'default-features' }}
   doc:
     # run docs generation on nightly rather than stable. This enables features like
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an

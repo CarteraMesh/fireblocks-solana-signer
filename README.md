@@ -41,6 +41,18 @@ Or install via cargo:
 cargo add fireblocks-solana-signer@1.0.4
 ```
 
+### Optional Features
+
+The crate provides optional features that can be enabled in your `Cargo.toml`:
+
+```toml
+[dependencies]
+fireblocks-solana-signer = { version = "1.0.4", features = ["tokio", "rustls-tls"] }
+```
+
+- **tokio**: Enables async support using tokio's `spawn_blocking` for non-blocking operations in async applications
+- **rustls-tls**: Uses rustls instead of native-tls for TLS support
+
 ## ⚠️ IMPORTANT: Automatic Transaction Broadcasting
 
 **This signer automatically broadcasts transactions to the Solana network.** When you call any signing method (like `try_sign`), Fireblocks will:

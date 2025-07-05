@@ -75,26 +75,27 @@ jobs:
           CURRENT_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           
-          # Parse version components (handle existing RC versions)
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$ ]]; then
+          # Get git short SHA
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "git_sha=$GIT_SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          # Parse version components (strip any existing RC/SHA suffixes)
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
             major=${BASH_REMATCH[1]}
             minor=${BASH_REMATCH[2]}
             patch=${BASH_REMATCH[3]}
-            rc_num=${BASH_REMATCH[5]:-0}
+            patch=$((patch +1))
           else
             echo "❌ Unable to parse version: $CURRENT_VERSION"
             exit 1
           fi
-           if [[ "$CURRENT_VERSION" =~ -rc\. ]]; then
-                # Increment RC number if current version is already RC
-              NEW_VERSION="$major.$minor.$patch-rc.$((rc_num + 1))"
-           else
-              echo "❌ Cannot increment RC number - current version is not an RC"
-              exit 1
-           fi
+          
+          # Create new RC version with format: major.minor.patch-rc-$GIT_SHORT_SHA
+          NEW_VERSION="$major.$minor.$patch-rc-$GIT_SHORT_SHA"
            
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "📦 Current version: $CURRENT_VERSION"
+          echo "🔗 Git SHA: $GIT_SHORT_SHA"
           echo "🚀 New RC version: $NEW_VERSION" 
 
       - name: Run basic checks
@@ -131,7 +132,8 @@ jobs:
             ## 🧪 Release Candidate v${{ steps.version.outputs.new_version }}
             
             **Version bump:** RC from v${{ steps.version.outputs.current_version }})  
-            **Published from branch:** `${{ steps.branch.outputs.name }}`
+            **Published from branch:** `${{ steps.branch.outputs.name }}`  
+            **Git commit:** `${{ steps.version.outputs.git_sha }}`
             
             ⚠️ **This is a release candidate.** It may contain bugs and is not recommended for production use.
             
