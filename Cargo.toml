@@ -15,6 +15,7 @@ readme = "README.md"
 [features]
 default = []
 rustls-tls = ["reqwest/rustls-tls"]
+tokio = ["dep:tokio"]
 
 [dependencies]
 base64 = { version = "0.22" }
@@ -39,6 +40,7 @@ solana-keypair = { version = "2" }
 rand = { version = "0.9" }
 reqwest = { version = "^0.12", features = ["json", "multipart", "blocking"] }
 thiserror = "2"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"], optional = true }
 tracing = { version = "0.1" }
 bon = "3.6.4"
 
@@ -49,4 +51,5 @@ dotenvy= "0.15"
 spl-memo = { version = "6" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
- solana-sdk = { version = ">=2.1", default-features = false, features = ["full"] }
+solana-sdk = { version = ">=2.1", default-features = false, features = ["full"] }
+tokio = { version = "1", features = ["full"] }

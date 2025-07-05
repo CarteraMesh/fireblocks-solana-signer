@@ -36,30 +36,20 @@ pub const FIREBLOCKS_API: &str = "https://api.fireblocks.io";
 pub const FIREBLOCKS_SANDBOX_API: &str = "https://sandbox-api.fireblocks.io";
 
 #[cfg(test)]
-mod test {
-
+mod test_utils {
     use {
-        super::*,
-        base64::prelude::*,
-        solana_message::Message,
-        solana_pubkey::{Pubkey, pubkey},
-        solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
         solana_sdk::instruction::Instruction,
-        solana_signer::Signer,
-        solana_transaction::{Transaction, versioned::VersionedTransaction},
-        std::{
-            env,
-            sync::{Arc, Once},
-            time::Duration,
-        },
+        std::{env, sync::Once},
         tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
     };
-    static INIT: Once = Once::new();
-    const LOOKUP: Pubkey = pubkey!("24DJ3Um2ekF2isQVMZcNHusmzLMMUS1oHQXhpPkVX7WV");
-    #[allow(dead_code)]
-    const USDC: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
-    const TO: Pubkey = pubkey!("E4SfgGV2v9GLYsEkCQhrrnFbBcYmAiUZZbJ7swKGzZHJ");
-
+    pub static INIT: Once = Once::new();
+    pub fn memo(message: &str) -> Instruction {
+        Instruction {
+            program_id: spl_memo::id(),
+            accounts: vec![],
+            data: message.as_bytes().to_vec(),
+        }
+    }
     #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
     pub fn setup() {
         INIT.call_once(|| {
@@ -79,14 +69,27 @@ mod test {
             }
         });
     }
+}
 
-    fn memo(message: &str) -> Instruction {
-        Instruction {
-            program_id: spl_memo::id(),
-            accounts: vec![],
-            data: message.as_bytes().to_vec(),
-        }
-    }
+#[cfg(not(feature = "tokio"))]
+#[cfg(test)]
+mod test {
+
+    use {
+        super::*,
+        base64::prelude::*,
+        solana_message::Message,
+        solana_pubkey::{Pubkey, pubkey},
+        solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
+        solana_signer::Signer,
+        solana_transaction::{Transaction, versioned::VersionedTransaction},
+        std::{sync::Arc, time::Duration},
+        test_utils::*,
+    };
+    pub const LOOKUP: Pubkey = pubkey!("24DJ3Um2ekF2isQVMZcNHusmzLMMUS1oHQXhpPkVX7WV");
+    #[allow(dead_code)]
+    pub const USDC: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+    pub const TO: Pubkey = pubkey!("E4SfgGV2v9GLYsEkCQhrrnFbBcYmAiUZZbJ7swKGzZHJ");
 
     fn clients() -> anyhow::Result<(Client, Arc<RpcClient>)> {
         let api_key: String =
@@ -210,6 +213,42 @@ mod test {
         let from_b = FireblocksSigner::from_bytes(&b)?;
         assert_eq!(signer.pk, from_b.pk);
 
+        Ok(())
+    }
+}
+
+#[cfg(feature = "tokio")]
+#[cfg(test)]
+mod tokio_test {
+    use {
+        super::*,
+        solana_message::Message,
+        solana_rpc_client::rpc_client::SerializableTransaction,
+        solana_signer::Signer,
+        solana_transaction::Transaction,
+        test_utils::{memo, setup},
+    };
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_tokio() -> anyhow::Result<()> {
+        setup();
+        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+            std::env::var("RPC_URL")
+                .ok()
+                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+        );
+        let signer = FireblocksSigner::try_from_env(None).await?;
+        let hash = rpc.get_latest_blockhash().await?;
+        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+        assert!(signer.is_interactive());
+
+        // Sign the transaction directly - no need for spawn_blocking as try_sign
+        // will use the tokio version of sign_message
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_sign(&[&signer], hash)?;
+
+        let signature = tx.get_signature();
+        tracing::info!("Transaction signature: {:?}", signature);
         Ok(())
     }
 }

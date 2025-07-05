@@ -211,7 +211,65 @@ impl FireblocksSigner {
     /// # Ok(())
     /// # }
     /// ```
+    /// Creates a new `FireblocksSigner` from environment variables.
+    ///
+    /// # Environment Variables
+    ///
+    /// - `FIREBLOCKS_VAULT`: The vault ID
+    /// - `FIREBLOCKS_TESTNET` or `FIREBLOCKS_DEVNET`: Set to any value if using
+    ///   testnet/devnet
+    /// - `FIREBLOCKS_SECRET`: The RSA private key
+    /// - `FIREBLOCKS_API_KEY`: The API key
+    /// - `FIREBLOCKS_ENDPOINT`: The API endpoint
+    /// - `FIREBLOCKS_POLL_TIMEOUT`: Timeout in seconds (default: 60)
+    /// - `FIREBLOCKS_POLL_INTERVAL`: Polling interval in seconds (default: 5)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use fireblocks_solana_signer::FireblocksSigner;
+    ///
+    /// // Create from environment variables
+    /// let signer = FireblocksSigner::try_from_env(None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// When the "tokio" feature is enabled, this function can be called in an
+    /// async context:
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "tokio")]
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use fireblocks_solana_signer::FireblocksSigner;
+    /// // Create signer asynchronously
+    /// let signer = FireblocksSigner::try_from_env(None).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(not(feature = "tokio"))]
     pub fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+        Self::try_from_env_impl(f)
+    }
+
+    #[cfg(feature = "tokio")]
+    pub async fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+        use tokio::task::spawn_blocking;
+
+        let f_clone = f;
+        let result = spawn_blocking(move || Self::try_from_env_impl(f_clone)).await;
+
+        match result {
+            Ok(signer_result) => signer_result,
+            Err(join_error) => Err(crate::Error::JoinError(format!(
+                "Failed to join tokio task: {join_error}"
+            ))),
+        }
+    }
+
+    /// Internal implementation of try_from_env
+    fn try_from_env_impl(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
         let vault = std::env::var("FIREBLOCKS_VAULT")?;
         let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
             || std::env::var("FIREBLOCKS_DEVNET").is_ok()
@@ -290,6 +348,9 @@ impl Signer for FireblocksSigner {
     /// # Returns
     ///
     /// Returns `Ok(Signature)` on successful signing, or a
+    /// Signs a message using this signer's keypair.
+    ///
+    /// Returns `Ok(Signature)` on successful signing, or a
     /// [`solana_signer::SignerError`] on failure.
     fn try_sign_message(
         &self,
@@ -297,9 +358,49 @@ impl Signer for FireblocksSigner {
     ) -> std::result::Result<Signature, solana_signer::SignerError> {
         match &self.keypair {
             Some(kp) => kp.try_sign_message(message),
+            #[cfg(not(feature = "tokio"))]
             None => self
                 .sign_transaction(message)
                 .map_err(|e| solana_signer::SignerError::Custom(format!("{e}"))),
+            #[cfg(feature = "tokio")]
+            None => {
+                let message_vec = message.to_vec();
+                let signer = self.clone();
+
+                // Use a oneshot channel to get the result back synchronously
+                let (tx, rx) = std::sync::mpsc::channel();
+
+                // Spawn the async work
+                if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    handle.spawn(async move {
+                        let result = tokio::task::spawn_blocking(move || {
+                            signer.sign_transaction(&message_vec)
+                        })
+                        .await;
+
+                        let final_result = match result {
+                            Ok(Ok(sig)) => Ok(sig),
+                            Ok(Err(e)) => Err(solana_signer::SignerError::Custom(format!("{e}"))),
+                            Err(e) => Err(solana_signer::SignerError::Custom(format!(
+                                "Join error: {e}"
+                            ))),
+                        };
+
+                        let _ = tx.send(final_result);
+                    });
+
+                    // Wait for the result synchronously
+                    rx.recv().unwrap_or_else(|_| {
+                        Err(solana_signer::SignerError::Custom(
+                            "Channel closed".to_string(),
+                        ))
+                    })
+                } else {
+                    Err(solana_signer::SignerError::Custom(
+                        "No tokio runtime available".to_string(),
+                    ))
+                }
+            }
         }
     }
 

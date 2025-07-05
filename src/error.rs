@@ -55,4 +55,7 @@ pub enum Error {
 
     #[error("Unknown asset {0}")]
     UnknownAsset(String),
+
+    #[error("Tokio join error: {0}")]
+    JoinError(String),
 }
