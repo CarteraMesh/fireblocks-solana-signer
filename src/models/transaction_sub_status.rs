@@ -367,3 +367,385 @@ impl Default for TransactionSubStatus {
         Self::Variant3RdPartyProcessing
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transaction_status_display() {
+        let test_cases = [
+            (
+                TransactionSubStatus::Variant3RdPartyProcessing,
+                "3RD_PARTY_PROCESSING",
+            ),
+            (
+                TransactionSubStatus::Variant3RdPartyPendingServiceManualApproval,
+                "3RD_PARTY_PENDING_SERVICE_MANUAL_APPROVAL",
+            ),
+            (
+                TransactionSubStatus::Pending3RdPartyManualApproval,
+                "PENDING_3RD_PARTY_MANUAL_APPROVAL",
+            ),
+            (
+                TransactionSubStatus::Variant3RdPartyConfirming,
+                "3RD_PARTY_CONFIRMING",
+            ),
+            (
+                TransactionSubStatus::PendingBlockchainConfirmations,
+                "PENDING_BLOCKCHAIN_CONFIRMATIONS",
+            ),
+            (
+                TransactionSubStatus::Variant3RdPartyCompleted,
+                "3RD_PARTY_COMPLETED",
+            ),
+            (
+                TransactionSubStatus::CompletedBut3RdPartyFailed,
+                "COMPLETED_BUT_3RD_PARTY_FAILED",
+            ),
+            (
+                TransactionSubStatus::CompletedBut3RdPartyRejected,
+                "COMPLETED_BUT_3RD_PARTY_REJECTED",
+            ),
+            (TransactionSubStatus::Confirmed, "CONFIRMED"),
+            (TransactionSubStatus::BlockedByPolicy, "BLOCKED_BY_POLICY"),
+            (
+                TransactionSubStatus::Variant3RdPartyCancelled,
+                "3RD_PARTY_CANCELLED",
+            ),
+            (
+                TransactionSubStatus::Variant3RdPartyRejected,
+                "3RD_PARTY_REJECTED",
+            ),
+            (TransactionSubStatus::CancelledByUser, "CANCELLED_BY_USER"),
+            (
+                TransactionSubStatus::CancelledByUserRequest,
+                "CANCELLED_BY_USER_REQUEST",
+            ),
+            (TransactionSubStatus::RejectedByUser, "REJECTED_BY_USER"),
+            (TransactionSubStatus::AutoFreeze, "AUTO_FREEZE"),
+            (TransactionSubStatus::FrozenManually, "FROZEN_MANUALLY"),
+            (
+                TransactionSubStatus::RejectedAmlScreening,
+                "REJECTED_AML_SCREENING",
+            ),
+            (
+                TransactionSubStatus::ActualFeeTooHigh,
+                "ACTUAL_FEE_TOO_HIGH",
+            ),
+            (
+                TransactionSubStatus::AddressWhitelistingSuspended,
+                "ADDRESS_WHITELISTING_SUSPENDED",
+            ),
+            (TransactionSubStatus::AmountTooSmall, "AMOUNT_TOO_SMALL"),
+            (
+                TransactionSubStatus::AuthorizationFailed,
+                "AUTHORIZATION_FAILED",
+            ),
+            (
+                TransactionSubStatus::AuthorizerNotFound,
+                "AUTHORIZER_NOT_FOUND",
+            ),
+            (
+                TransactionSubStatus::EnvUnsupportedAsset,
+                "ENV_UNSUPPORTED_ASSET",
+            ),
+            (
+                TransactionSubStatus::ErrorUnsupportedTransactionType,
+                "ERROR_UNSUPPORTED_TRANSACTION_TYPE",
+            ),
+            (TransactionSubStatus::FailOnLowFee, "FAIL_ON_LOW_FEE"),
+            (TransactionSubStatus::GasLimitTooLow, "GAS_LIMIT_TOO_LOW"),
+            (
+                TransactionSubStatus::GasPriceTooLowForRbf,
+                "GAS_PRICE_TOO_LOW_FOR_RBF",
+            ),
+            (
+                TransactionSubStatus::IncompleteUserSetup,
+                "INCOMPLETE_USER_SETUP",
+            ),
+            (
+                TransactionSubStatus::InsufficientFunds,
+                "INSUFFICIENT_FUNDS",
+            ),
+            (
+                TransactionSubStatus::InsufficientFundsForFee,
+                "INSUFFICIENT_FUNDS_FOR_FEE",
+            ),
+            (
+                TransactionSubStatus::IntegrationSuspended,
+                "INTEGRATION_SUSPENDED",
+            ),
+            (TransactionSubStatus::InvalidAddress, "INVALID_ADDRESS"),
+            (
+                TransactionSubStatus::InvalidContractCallData,
+                "INVALID_CONTRACT_CALL_DATA",
+            ),
+            (TransactionSubStatus::InvalidFeeParams, "INVALID_FEE_PARAMS"),
+            (
+                TransactionSubStatus::InvalidNonceForRbf,
+                "INVALID_NONCE_FOR_RBF",
+            ),
+            (
+                TransactionSubStatus::InvalidTagOrMemo,
+                "INVALID_TAG_OR_MEMO",
+            ),
+            (
+                TransactionSubStatus::InvalidUnmanagedWallet,
+                "INVALID_UNMANAGED_WALLET",
+            ),
+            (TransactionSubStatus::MaxFeeExceeded, "MAX_FEE_EXCEEDED"),
+            (
+                TransactionSubStatus::MissingTagOrMemo,
+                "MISSING_TAG_OR_MEMO",
+            ),
+            (
+                TransactionSubStatus::NeedMoreToCreateDestination,
+                "NEED_MORE_TO_CREATE_DESTINATION",
+            ),
+            (
+                TransactionSubStatus::NoMorePreprocessedIndexes,
+                "NO_MORE_PREPROCESSED_INDEXES",
+            ),
+            (
+                TransactionSubStatus::NonExistingAccountName,
+                "NON_EXISTING_ACCOUNT_NAME",
+            ),
+            (
+                TransactionSubStatus::RawMsgEmptyOrInvalid,
+                "RAW_MSG_EMPTY_OR_INVALID",
+            ),
+            (
+                TransactionSubStatus::RawMsgLenInvalid,
+                "RAW_MSG_LEN_INVALID",
+            ),
+            (TransactionSubStatus::TooManyInputs, "TOO_MANY_INPUTS"),
+            (
+                TransactionSubStatus::TxSizeExceededMax,
+                "TX_SIZE_EXCEEDED_MAX",
+            ),
+            (
+                TransactionSubStatus::UnauthorisedDevice,
+                "UNAUTHORISED_DEVICE",
+            ),
+            (TransactionSubStatus::UnauthorisedUser, "UNAUTHORISED_USER"),
+            (
+                TransactionSubStatus::UnallowedRawParamCombination,
+                "UNALLOWED_RAW_PARAM_COMBINATION",
+            ),
+            (
+                TransactionSubStatus::UnsupportedOperation,
+                "UNSUPPORTED_OPERATION",
+            ),
+            (
+                TransactionSubStatus::UnsupportedTransactionType,
+                "UNSUPPORTED_TRANSACTION_TYPE",
+            ),
+            (
+                TransactionSubStatus::ZeroBalanceInPermanentAddress,
+                "ZERO_BALANCE_IN_PERMANENT_ADDRESS",
+            ),
+            (
+                TransactionSubStatus::OutOfDateSigningKeys,
+                "OUT_OF_DATE_SIGNING_KEYS",
+            ),
+            (
+                TransactionSubStatus::ConnectivityError,
+                "CONNECTIVITY_ERROR",
+            ),
+            (
+                TransactionSubStatus::ErrorAsyncTxInFlight,
+                "ERROR_ASYNC_TX_IN_FLIGHT",
+            ),
+            (TransactionSubStatus::InternalError, "INTERNAL_ERROR"),
+            (
+                TransactionSubStatus::InvalidNonceTooHigh,
+                "INVALID_NONCE_TOO_HIGH",
+            ),
+            (
+                TransactionSubStatus::InvalidNonceTooLow,
+                "INVALID_NONCE_TOO_LOW",
+            ),
+            (
+                TransactionSubStatus::InvalidRoutingDestination,
+                "INVALID_ROUTING_DESTINATION",
+            ),
+            (
+                TransactionSubStatus::LockingNonceAccountTimeout,
+                "LOCKING_NONCE_ACCOUNT_TIMEOUT",
+            ),
+            (
+                TransactionSubStatus::NetworkRoutingMismatch,
+                "NETWORK_ROUTING_MISMATCH",
+            ),
+            (
+                TransactionSubStatus::NonceAllocationFailed,
+                "NONCE_ALLOCATION_FAILED",
+            ),
+            (
+                TransactionSubStatus::ResourceAlreadyExists,
+                "RESOURCE_ALREADY_EXISTS",
+            ),
+            (TransactionSubStatus::SignerNotFound, "SIGNER_NOT_FOUND"),
+            (TransactionSubStatus::SigningError, "SIGNING_ERROR"),
+            (TransactionSubStatus::Timeout, "TIMEOUT"),
+            (TransactionSubStatus::TxOutdated, "TX_OUTDATED"),
+            (TransactionSubStatus::UnknownError, "UNKNOWN_ERROR"),
+            (
+                TransactionSubStatus::VaultWalletNotReady,
+                "VAULT_WALLET_NOT_READY",
+            ),
+            (
+                TransactionSubStatus::UnsupportedMediaType,
+                "UNSUPPORTED_MEDIA_TYPE",
+            ),
+            (
+                TransactionSubStatus::AddressNotWhitelisted,
+                "ADDRESS_NOT_WHITELISTED",
+            ),
+            (TransactionSubStatus::ApiKeyMismatch, "API_KEY_MISMATCH"),
+            (
+                TransactionSubStatus::AssetNotEnabledOnDestination,
+                "ASSET_NOT_ENABLED_ON_DESTINATION",
+            ),
+            (
+                TransactionSubStatus::DestTypeNotSupported,
+                "DEST_TYPE_NOT_SUPPORTED",
+            ),
+            (
+                TransactionSubStatus::ExceededDecimalPrecision,
+                "EXCEEDED_DECIMAL_PRECISION",
+            ),
+            (
+                TransactionSubStatus::ExchangeConfigurationMismatch,
+                "EXCHANGE_CONFIGURATION_MISMATCH",
+            ),
+            (
+                TransactionSubStatus::ExchangeVersionIncompatible,
+                "EXCHANGE_VERSION_INCOMPATIBLE",
+            ),
+            (
+                TransactionSubStatus::InvalidExchangeAccount,
+                "INVALID_EXCHANGE_ACCOUNT",
+            ),
+            (TransactionSubStatus::MethodNotAllowed, "METHOD_NOT_ALLOWED"),
+            (
+                TransactionSubStatus::NonExistentAutoAccount,
+                "NON_EXISTENT_AUTO_ACCOUNT",
+            ),
+            (
+                TransactionSubStatus::OnPremiseConnectivityError,
+                "ON_PREMISE_CONNECTIVITY_ERROR",
+            ),
+            (
+                TransactionSubStatus::PeerAccountDoesNotExist,
+                "PEER_ACCOUNT_DOES_NOT_EXIST",
+            ),
+            (
+                TransactionSubStatus::ThirdPartyMissingAccount,
+                "THIRD_PARTY_MISSING_ACCOUNT",
+            ),
+            (
+                TransactionSubStatus::UnauthorisedIpWhitelisting,
+                "UNAUTHORISED_IP_WHITELISTING",
+            ),
+            (
+                TransactionSubStatus::UnauthorisedMissingCredentials,
+                "UNAUTHORISED_MISSING_CREDENTIALS",
+            ),
+            (
+                TransactionSubStatus::UnauthorisedMissingPermission,
+                "UNAUTHORISED_MISSING_PERMISSION",
+            ),
+            (
+                TransactionSubStatus::UnauthorisedOtpFailed,
+                "UNAUTHORISED_OTP_FAILED",
+            ),
+            (TransactionSubStatus::WithdrawLimit, "WITHDRAW_LIMIT"),
+            (
+                TransactionSubStatus::Variant3RdPartyFailed,
+                "3RD_PARTY_FAILED",
+            ),
+            (TransactionSubStatus::ApiCallLimit, "API_CALL_LIMIT"),
+            (
+                TransactionSubStatus::ApiInvalidSignature,
+                "API_INVALID_SIGNATURE",
+            ),
+            (
+                TransactionSubStatus::CancelledExternally,
+                "CANCELLED_EXTERNALLY",
+            ),
+            (
+                TransactionSubStatus::FailedAmlScreening,
+                "FAILED_AML_SCREENING",
+            ),
+            (TransactionSubStatus::InvalidFee, "INVALID_FEE"),
+            (
+                TransactionSubStatus::InvalidThirdPartyResponse,
+                "INVALID_THIRD_PARTY_RESPONSE",
+            ),
+            (
+                TransactionSubStatus::ManualDepositAddressRequired,
+                "MANUAL_DEPOSIT_ADDRESS_REQUIRED",
+            ),
+            (
+                TransactionSubStatus::MissingDepositAddress,
+                "MISSING_DEPOSIT_ADDRESS",
+            ),
+            (TransactionSubStatus::NoDepositAddress, "NO_DEPOSIT_ADDRESS"),
+            (
+                TransactionSubStatus::SubAccountsNotSupported,
+                "SUB_ACCOUNTS_NOT_SUPPORTED",
+            ),
+            (
+                TransactionSubStatus::SpendCoinbaseTooEarly,
+                "SPEND_COINBASE_TOO_EARLY",
+            ),
+            (
+                TransactionSubStatus::ThirdPartyInternalError,
+                "THIRD_PARTY_INTERNAL_ERROR",
+            ),
+            (
+                TransactionSubStatus::TxIdNotAcceptedByThirdParty,
+                "TX_ID_NOT_ACCEPTED_BY_THIRD_PARTY",
+            ),
+            (TransactionSubStatus::UnsupportedAsset, "UNSUPPORTED_ASSET"),
+            (TransactionSubStatus::DoubleSpending, "DOUBLE_SPENDING"),
+            (
+                TransactionSubStatus::DroppedByBlockchain,
+                "DROPPED_BY_BLOCKCHAIN",
+            ),
+            (
+                TransactionSubStatus::InsufficientReservedFunding,
+                "INSUFFICIENT_RESERVED_FUNDING",
+            ),
+            (TransactionSubStatus::InvalidSignature, "INVALID_SIGNATURE"),
+            (TransactionSubStatus::PartiallyFailed, "PARTIALLY_FAILED"),
+            (
+                TransactionSubStatus::PowerupSuggestionFailure,
+                "POWERUP_SUGGESTION_FAILURE",
+            ),
+            (
+                TransactionSubStatus::ReachedMempoolLimitForAccount,
+                "REACHED_MEMPOOL_LIMIT_FOR_ACCOUNT",
+            ),
+            (
+                TransactionSubStatus::RejectedByBlockchain,
+                "REJECTED_BY_BLOCKCHAIN",
+            ),
+            (
+                TransactionSubStatus::SmartContractExecutionFailed,
+                "SMART_CONTRACT_EXECUTION_FAILED",
+            ),
+            (
+                TransactionSubStatus::TooLongMempoolChain,
+                "TOO_LONG_MEMPOOL_CHAIN",
+            ),
+            (TransactionSubStatus::Empty, ""),
+        ];
+
+        for (status, expected) in test_cases {
+            assert_eq!(status.to_string(), expected);
+        }
+    }
+}

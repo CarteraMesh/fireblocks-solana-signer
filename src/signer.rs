@@ -34,7 +34,15 @@
 mod keypair;
 mod poll;
 use {
-    crate::{Asset, Client, ClientBuilder, Error, Result, VersionedTransactionExtension},
+    crate::{
+        Asset,
+        Client,
+        ClientBuilder,
+        Error,
+        Result,
+        TransactionStatus,
+        VersionedTransactionExtension,
+    },
     base64::prelude::*,
     solana_keypair::Keypair,
     solana_message::VersionedMessage,
@@ -148,6 +156,23 @@ impl FireblocksSigner {
             self.poll_config.interval,
             self.poll_config.callback,
         )?;
+        match &result.status {
+            TransactionStatus::Pending3RdParty
+            | TransactionStatus::PendingSignature
+            | TransactionStatus::PendingAmlScreening => {
+                return Err(crate::Error::FireblocksNoSig(format!(
+                    "No Signature available for txid {result} {}",
+                    result
+                        .error_description
+                        .as_ref()
+                        .map_or("unknown error", |v| v)
+                )));
+            }
+            TransactionStatus::Broadcasting => {
+                tracing::error!("txid {} is in broadcasting but not confirmed", result.id,);
+            }
+            _ => {}
+        };
         sig.ok_or_else(|| {
             crate::Error::FireblocksNoSig(format!(
                 "No Signature available for txid {result} {}",
@@ -317,6 +342,21 @@ impl FireblocksSigner {
             .pk(pk)
             .build())
     }
+
+    #[cfg(feature = "tokio")]
+    /// Creates a new `FireblocksSigner` from environment variables in a
+    /// blocking manner.
+    ///
+    /// This function is intended for use in synchronous contexts when the
+    /// `tokio` feature is enabled.
+    ///
+    /// # Panics
+    ///
+    /// This function uses blocking I/O and will panic if called from within an
+    /// existing Tokio runtime.
+    pub fn try_from_env_blocking(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+        Self::try_from_env_impl(f)
+    }
 }
 
 /// Implementation of the Solana [`Signer`] trait for [`FireblocksSigner`].
@@ -366,10 +406,8 @@ impl Signer for FireblocksSigner {
             None => {
                 let message_vec = message.to_vec();
                 let signer = self.clone();
-
                 // Use a oneshot channel to get the result back synchronously
                 let (tx, rx) = std::sync::mpsc::channel();
-
                 // Spawn the async work
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
                     handle.spawn(async move {
@@ -396,9 +434,10 @@ impl Signer for FireblocksSigner {
                         ))
                     })
                 } else {
-                    Err(solana_signer::SignerError::Custom(
-                        "No tokio runtime available".to_string(),
-                    ))
+                    // If not in a runtime, we can call the blocking function directly.
+                    // There's no runtime to deadlock.
+                    self.sign_transaction(message)
+                        .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
                 }
             }
         }
