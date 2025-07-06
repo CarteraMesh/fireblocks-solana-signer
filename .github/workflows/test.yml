@@ -119,27 +119,6 @@ jobs:
       - name: cargo build
         run: cargo build --locked --all-features --all-targets
   coverage:
-    # use llvm-cov to build and collect coverage and outputs in a format that
-    # is compatible with codecov.io
-    #
-    # note that codecov as of v4 requires that CODECOV_TOKEN from
-    #
-    #   https://app.codecov.io/gh/<user or org>/<project>/settings
-    #
-    # is set in two places on your repo:
-    #
-    # - https://github.com/jonhoo/guardian/settings/secrets/actions
-    # - https://github.com/jonhoo/guardian/settings/secrets/dependabot
-    #
-    # (the former is needed for codecov uploads to work with Dependabot PRs)
-    #
-    # PRs coming from forks of your repo will not have access to the token, but
-    # for those, codecov allows uploading coverage reports without a token.
-    # it's all a little weird and inconvenient. see
-    #
-    #   https://github.com/codecov/feedback/issues/112
-    #
-    # for lots of more discussion
     runs-on: ubicloud-standard-2
     name: ubuntu / stable / coverage / ${{ matrix.features }}
     strategy:
@@ -150,8 +129,6 @@ jobs:
           - "tokio"
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:

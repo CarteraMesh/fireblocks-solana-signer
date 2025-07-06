@@ -239,11 +239,32 @@ mod tokio_test {
         );
         let signer = FireblocksSigner::try_from_env(None).await?;
         let hash = rpc.get_latest_blockhash().await?;
-        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+        let message = Message::new(&[memo("fireblocks signer tokio")], Some(&signer.pk));
         assert!(signer.is_interactive());
 
         // Sign the transaction directly - no need for spawn_blocking as try_sign
         // will use the tokio version of sign_message
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_sign(&[&signer], hash)?;
+
+        let signature = tx.get_signature();
+        tracing::info!("Transaction signature: {:?}", signature);
+        Ok(())
+    }
+
+    #[test]
+    fn test_tokio_in_sync_context() -> anyhow::Result<()> {
+        setup();
+        let rpc = solana_rpc_client::rpc_client::RpcClient::new(
+            std::env::var("RPC_URL")
+                .ok()
+                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+        );
+        let signer = FireblocksSigner::try_from_env_blocking(None)?;
+        let hash = rpc.get_latest_blockhash()?;
+        let message = Message::new(&[memo("fireblocks signer tokio")], Some(&signer.pk));
+        assert!(signer.is_interactive());
+
         let mut tx = Transaction::new_unsigned(message);
         tx.try_sign(&[&signer], hash)?;
 
