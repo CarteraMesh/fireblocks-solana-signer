@@ -272,4 +272,11 @@ mod tokio_test {
         tracing::info!("Transaction signature: {:?}", signature);
         Ok(())
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_builder() -> anyhow::Result<()> {
+        setup();
+        let _ = FireblocksSigner::new();
+        Ok(())
+    }
 }
