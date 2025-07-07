@@ -99,7 +99,7 @@ pub struct FireblocksSigner {
     pub keypair: Option<Arc<Keypair>>,
 
     /// The Fireblocks client for API communication.
-    client: Client,
+    client: Option<Client>,
 }
 
 impl Debug for FireblocksSigner {
@@ -138,8 +138,17 @@ impl FireblocksSigner {
     /// - The Fireblocks API call fails
     /// - Polling times out
     /// - No signature is returned from Fireblocks
+    ///
+    /// # Panics
+    ///
+    /// Panics if neither a keypair nor a Fireblocks client is configured.
+    /// This indicates a fundamental configuration error in the signer setup.
     #[tracing::instrument(level = "debug", skip(message))]
     fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
+        let client = self.client.as_ref().expect(
+            "FireblocksSigner must have either a keypair or a Fireblocks client configured",
+        );
+
         let versioned_message: VersionedMessage = bincode::deserialize(message)
             .map_err(|e| Error::InvalidMessage(format!("Failed to deserialize message: {e}")))?;
         let versioned_transaction = VersionedTransaction::new_unsigned(versioned_message);
@@ -147,10 +156,8 @@ impl FireblocksSigner {
             BASE64_STANDARD.encode(bincode::serialize(&versioned_transaction)?);
 
         tracing::debug!("tx base64 {transaction_base64}");
-        let resp = self
-            .client
-            .program_call(&self.asset, &self.vault_id, transaction_base64)?;
-        let (result, sig) = self.client.poll(
+        let resp = client.program_call(&self.asset, &self.vault_id, transaction_base64)?;
+        let (result, sig) = client.poll(
             &resp.id,
             self.poll_config.timeout,
             self.poll_config.interval,
@@ -335,7 +342,7 @@ impl FireblocksSigner {
             .callback(cb)
             .build();
         Ok(FireblocksSigner::builder()
-            .client(client)
+            .maybe_client(Some(client))
             .vault_id(vault)
             .asset(asset)
             .poll_config(poll)
