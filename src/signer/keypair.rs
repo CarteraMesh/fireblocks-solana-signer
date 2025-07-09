@@ -34,7 +34,12 @@
 //! broadcasted** to the Solana network upon signing. See the main crate
 //! documentation for more details on this behavior.
 
-use {super::FireblocksSigner, solana_keypair::Keypair, solana_signer::Signer};
+use {
+    super::FireblocksSigner,
+    solana_keypair::Keypair,
+    solana_signature::error::Error as SignatureError,
+    solana_signer::Signer,
+};
 
 /// The length of a keypair in bytes (32 bytes secret key + 32 bytes public key)
 const KEYPAIR_LENGTH: usize = 64;
@@ -252,6 +257,15 @@ impl FireblocksSigner {
             Some(kp) => kp.to_base58_string(),
             None => Keypair::new().to_base58_string(),
         }
+    }
+}
+
+impl TryFrom<&[u8]> for FireblocksSigner {
+    type Error = SignatureError;
+
+    fn try_from(bytes: &[u8]) -> std::result::Result<Self, Self::Error> {
+        let kp = Keypair::try_from(bytes)?;
+        Ok(FireblocksSigner::new_with_keypair(kp))
     }
 }
 
