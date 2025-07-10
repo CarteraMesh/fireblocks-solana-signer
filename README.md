@@ -32,13 +32,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fireblocks-solana-signer = "1.0.8"
+fireblocks-solana-signer = "1.0.9"
 ```
 
 Or install via cargo:
 
 ```bash
-cargo add fireblocks-solana-signer@1.0.8
+cargo add fireblocks-solana-signer@1.0.9
 ```
 
 ### Optional Features
