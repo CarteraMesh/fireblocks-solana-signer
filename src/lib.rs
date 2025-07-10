@@ -222,10 +222,10 @@ mod test {
 mod tokio_test {
     use {
         super::*,
-        solana_message::Message,
+        solana_message::{Message, VersionedMessage},
         solana_rpc_client::rpc_client::SerializableTransaction,
         solana_signer::Signer,
-        solana_transaction::Transaction,
+        solana_transaction::{Transaction, versioned::VersionedTransaction},
         test_utils::{memo, setup},
     };
 
@@ -249,6 +249,55 @@ mod tokio_test {
 
         let signature = tx.get_signature();
         tracing::info!("Transaction signature: {:?}", signature);
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_tokio_try_new() -> anyhow::Result<()> {
+        setup();
+        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+            std::env::var("RPC_URL")
+                .ok()
+                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+        );
+        let signer = FireblocksSigner::try_from_env(None).await?;
+        let hash = rpc.get_latest_blockhash().await?;
+        let message = Message::new_with_blockhash(
+            &[memo("fireblocks signer tokio")],
+            Some(&signer.pk),
+            &hash,
+        );
+        let message = VersionedMessage::Legacy(message);
+        let tx = VersionedTransaction::try_new(message, &[&signer])?;
+        let signature = tx.get_signature();
+        tracing::info!("Transaction signature: {:?}", signature);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_tokio_one_worker() -> anyhow::Result<()> {
+        setup();
+        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+            std::env::var("RPC_URL")
+                .ok()
+                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+        );
+        let signer = FireblocksSigner::try_from_env(None).await?;
+        let hash = rpc.get_latest_blockhash().await?;
+        let message = Message::new_with_blockhash(
+            &[memo("fireblocks signer tokio")],
+            Some(&signer.pk),
+            &hash,
+        );
+        let message = VersionedMessage::Legacy(message);
+        let result = VersionedTransaction::try_new(message, &[&signer]);
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(
+                e.to_string()
+                    .contains("FireblocksSigner cannot be used in single-threaded Tokio runtime")
+            )
+        }
         Ok(())
     }
 

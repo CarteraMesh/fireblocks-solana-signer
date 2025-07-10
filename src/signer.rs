@@ -164,21 +164,62 @@ impl FireblocksSigner {
             self.poll_config.callback,
         )?;
         match &result.status {
-            TransactionStatus::Pending3RdParty
+            // These statuses indicate the transaction is still pending and shouldn't have been
+            // returned by polling
+            TransactionStatus::Submitted
+            | TransactionStatus::Queued
+            | TransactionStatus::Pending3RdParty
             | TransactionStatus::PendingSignature
+            | TransactionStatus::PendingAuthorization
+            | TransactionStatus::Pending3RdPartyManualApproval
+            | TransactionStatus::PendingEnrichment
             | TransactionStatus::PendingAmlScreening => {
                 return Err(crate::Error::FireblocksNoSig(format!(
-                    "No Signature available for txid {result} {}",
+                    "txid: {} is still pending with status {} (\"{}\"). This indicates a polling \
+                     timeout or configuration issue.",
+                    result.id,
+                    result.status,
+                    result.sub_status.unwrap_or_default(),
+                )));
+            }
+
+            // These statuses indicate permanent failure
+            TransactionStatus::Failed
+            | TransactionStatus::Blocked
+            | TransactionStatus::Rejected
+            | TransactionStatus::Cancelled
+            | TransactionStatus::Cancelling => {
+                return Err(crate::Error::FireblocksNoSig(format!(
+                    "txid: {} failed with status {} substatus: \"{}\" error: {}",
+                    result.id,
+                    result.status,
+                    result.sub_status.unwrap_or_default(),
                     result
                         .error_description
                         .as_ref()
                         .map_or("unknown error", |v| v)
                 )));
             }
+
+            // Broadcasting means the transaction is being sent to the network but not yet confirmed
+            // This is a transitional state that polling should have waited through
             TransactionStatus::Broadcasting => {
-                tracing::error!("txid {} is in broadcasting but not confirmed", result.id,);
+                tracing::warn!(
+                    "txid {} is in Broadcasting state - transaction may not be fully confirmed yet",
+                    result.id
+                );
+                // Continue to check for signature, but this might indicate
+                // incomplete confirmation
             }
-            _ => {}
+
+            // These are the success states where we expect a signature
+            TransactionStatus::Completed | TransactionStatus::Confirming => {
+                tracing::debug!(
+                    "Transaction {} completed with status {}",
+                    result.id,
+                    result.status
+                );
+            }
         };
         sig.ok_or_else(|| {
             crate::Error::FireblocksNoSig(format!(
@@ -417,6 +458,16 @@ impl Signer for FireblocksSigner {
                 let (tx, rx) = std::sync::mpsc::channel();
                 // Spawn the async work
                 if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    let metrics = handle.metrics();
+                    if metrics.num_workers() <= 1 {
+                        return Err(solana_signer::SignerError::Custom(
+                            "FireblocksSigner cannot be used in single-threaded Tokio runtime due \
+                             to deadlock risk. Use multi-threaded runtime or call from non-async \
+                             context."
+                                .to_string(),
+                        ));
+                    }
+                    tracing::debug!("spawning sign_transaction call");
                     handle.spawn(async move {
                         let result = tokio::task::spawn_blocking(move || {
                             signer.sign_transaction(&message_vec)
@@ -434,6 +485,7 @@ impl Signer for FireblocksSigner {
                         let _ = tx.send(final_result);
                     });
 
+                    tracing::debug!("waiting for response...");
                     // Wait for the result synchronously
                     rx.recv().unwrap_or_else(|_| {
                         Err(solana_signer::SignerError::Custom(

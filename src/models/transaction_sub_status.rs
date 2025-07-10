@@ -364,7 +364,7 @@ impl std::fmt::Display for TransactionSubStatus {
 
 impl Default for TransactionSubStatus {
     fn default() -> TransactionSubStatus {
-        Self::Variant3RdPartyProcessing
+        Self::Empty
     }
 }
 
@@ -747,5 +747,6 @@ mod tests {
         for (status, expected) in test_cases {
             assert_eq!(status.to_string(), expected);
         }
+        assert_eq!(TransactionSubStatus::Empty, TransactionSubStatus::default());
     }
 }

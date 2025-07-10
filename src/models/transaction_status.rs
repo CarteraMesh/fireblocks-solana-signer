@@ -38,6 +38,21 @@ pub enum TransactionStatus {
     Failed,
 }
 
+impl TransactionStatus {
+    pub fn is_done(&self) -> bool {
+        matches!(
+            self,
+            TransactionStatus::Cancelling
+                | TransactionStatus::Cancelled
+                | TransactionStatus::Blocked
+                | TransactionStatus::Completed
+                | TransactionStatus::Confirming
+                | TransactionStatus::Failed
+                | TransactionStatus::Rejected
+        )
+    }
+}
+
 impl std::fmt::Display for TransactionStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -104,6 +119,44 @@ mod tests {
 
         for (status, expected) in test_cases {
             assert_eq!(status.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_is_done_final_statuses() {
+        // Test that all final statuses return true
+        let final_statuses = [
+            TransactionStatus::Cancelling,
+            TransactionStatus::Cancelled,
+            TransactionStatus::Blocked,
+            TransactionStatus::Completed,
+            TransactionStatus::Confirming,
+            TransactionStatus::Failed,
+            TransactionStatus::Rejected,
+        ];
+
+        for status in final_statuses {
+            assert!(status.is_done());
+        }
+    }
+
+    #[test]
+    fn test_is_done_in_progress_statuses() {
+        // Test that all in-progress statuses return false
+        let in_progress_statuses = [
+            TransactionStatus::Submitted,
+            TransactionStatus::PendingAmlScreening,
+            TransactionStatus::PendingEnrichment,
+            TransactionStatus::PendingAuthorization,
+            TransactionStatus::Queued,
+            TransactionStatus::PendingSignature,
+            TransactionStatus::Pending3RdPartyManualApproval,
+            TransactionStatus::Pending3RdParty,
+            TransactionStatus::Broadcasting,
+        ];
+
+        for status in in_progress_statuses {
+            assert!(!status.is_done());
         }
     }
 }

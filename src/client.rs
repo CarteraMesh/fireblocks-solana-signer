@@ -19,7 +19,6 @@ use {
         SourceTransferPeerPath,
         TransactionRequest,
         TransactionResponse,
-        TransactionStatus,
         jwt::JwtSigner,
         models::VaultAddressesResponse,
     },
@@ -478,33 +477,23 @@ impl Client {
 
         loop {
             let (result, sig) = self.get_tx(txid)?;
-            match &result.status {
-                TransactionStatus::Blocked
-                | TransactionStatus::Cancelled
-                | TransactionStatus::Cancelling
-                | TransactionStatus::Completed
-                | TransactionStatus::Confirming
-                | TransactionStatus::Failed
-                | TransactionStatus::Rejected => {
-                    return Ok((result, sig));
-                }
-                _ => {
-                    callback(&result);
-                    // Check if we have time for another iteration
-                    let now = std::time::Instant::now();
-                    // Sleep for the interval or remaining time, whichever is shorter
-                    let remaining = deadline - now;
-                    let sleep_duration = interval.min(remaining);
-                    std::thread::sleep(sleep_duration);
+            if result.status.is_done() {
+                return Ok((result, sig));
+            }
+            callback(&result);
+            // Check if we have time for another iteration
+            let now = std::time::Instant::now();
+            // Sleep for the interval or remaining time, whichever is shorter
+            let remaining = deadline - now;
+            let sleep_duration = interval.min(remaining);
+            std::thread::sleep(sleep_duration);
 
-                    if now >= deadline {
-                        tracing::warn!(
-                            "timeout while waiting for transaction confirmation {}",
-                            result.id
-                        );
-                        break;
-                    }
-                }
+            if now >= deadline {
+                tracing::warn!(
+                    "timeout while waiting for transaction confirmation {}",
+                    result.id
+                );
+                break;
             }
         }
         // Maybe last call will be lucky
