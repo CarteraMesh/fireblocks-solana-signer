@@ -53,3 +53,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
 solana-sdk = { version = ">=2.1", default-features = false, features = ["full"] }
 tokio = { version = "1", features = ["full"] }
+actix-web = "4"

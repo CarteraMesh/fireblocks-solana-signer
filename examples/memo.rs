@@ -1,18 +1,6 @@
 use fireblocks_solana_signer::FireblocksSigner;
 mod common;
-use {
-    solana_message::Message,
-    solana_sdk::instruction::Instruction,
-    solana_transaction::Transaction,
-};
-
-fn memo(message: &str) -> Instruction {
-    Instruction {
-        program_id: spl_memo::id(),
-        accounts: vec![],
-        data: message.as_bytes().to_vec(),
-    }
-}
+use solana_transaction::Transaction;
 
 #[cfg(not(feature = "tokio"))]
 fn main() -> anyhow::Result<()> {
@@ -26,7 +14,7 @@ fn main() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let hash = rpc.get_latest_blockhash()?;
-    let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+    let message = common::memo(&hash, &signer, "fireblocks signer");
     let mut tx = Transaction::new_unsigned(message);
     tx.try_sign(&[&signer], hash)?;
     println!("sig {}", tx.get_signature());
@@ -49,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let hash = rpc.get_latest_blockhash().await?;
-    let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
+    let message = common::memo(&hash, &signer, "fireblocks signer");
     let mut tx = Transaction::new_unsigned(message);
     tx.try_sign(&[&signer], hash)?;
     println!("sig {}", tx.get_signature());

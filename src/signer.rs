@@ -446,58 +446,29 @@ impl Signer for FireblocksSigner {
     ) -> std::result::Result<Signature, solana_signer::SignerError> {
         match &self.keypair {
             Some(kp) => kp.try_sign_message(message),
-            #[cfg(not(feature = "tokio"))]
-            None => self
-                .sign_transaction(message)
-                .map_err(|e| solana_signer::SignerError::Custom(format!("{e}"))),
-            #[cfg(feature = "tokio")]
             None => {
                 let message_vec = message.to_vec();
                 let signer = self.clone();
-                // Use a oneshot channel to get the result back synchronously
+
+                tracing::debug!("spawning sign_transaction call with std::thread::spawn");
+
+                // Use std::thread::spawn for universal compatibility across all contexts
                 let (tx, rx) = std::sync::mpsc::channel();
-                // Spawn the async work
-                if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                    let metrics = handle.metrics();
-                    if metrics.num_workers() <= 1 {
-                        return Err(solana_signer::SignerError::Custom(
-                            "FireblocksSigner cannot be used in single-threaded Tokio runtime due \
-                             to deadlock risk. Use multi-threaded runtime or call from non-async \
-                             context."
-                                .to_string(),
-                        ));
-                    }
-                    tracing::debug!("spawning sign_transaction call");
-                    handle.spawn(async move {
-                        let result = tokio::task::spawn_blocking(move || {
-                            signer.sign_transaction(&message_vec)
-                        })
-                        .await;
 
-                        let final_result = match result {
-                            Ok(Ok(sig)) => Ok(sig),
-                            Ok(Err(e)) => Err(solana_signer::SignerError::Custom(format!("{e}"))),
-                            Err(e) => Err(solana_signer::SignerError::Custom(format!(
-                                "Join error: {e}"
-                            ))),
-                        };
+                std::thread::spawn(move || {
+                    let result = signer.sign_transaction(&message_vec);
+                    let final_result =
+                        result.map_err(|e| solana_signer::SignerError::Custom(format!("{e}")));
+                    let _ = tx.send(final_result);
+                });
 
-                        let _ = tx.send(final_result);
-                    });
-
-                    tracing::debug!("waiting for response...");
-                    // Wait for the result synchronously
-                    rx.recv().unwrap_or_else(|_| {
-                        Err(solana_signer::SignerError::Custom(
-                            "Channel closed".to_string(),
-                        ))
-                    })
-                } else {
-                    // If not in a runtime, we can call the blocking function directly.
-                    // There's no runtime to deadlock.
-                    self.sign_transaction(message)
-                        .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
-                }
+                tracing::debug!("waiting for response...");
+                // Wait for the result synchronously (could take 2+ minutes)
+                rx.recv().unwrap_or_else(|_| {
+                    Err(solana_signer::SignerError::Custom(
+                        "Channel closed".to_string(),
+                    ))
+                })
             }
         }
     }
