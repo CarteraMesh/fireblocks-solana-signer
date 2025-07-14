@@ -4,6 +4,7 @@ use {
     tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
 };
 
+#[allow(dead_code)]
 pub fn memo(
     hash: &Hash,
     signer: &fireblocks_solana_signer::FireblocksSigner,

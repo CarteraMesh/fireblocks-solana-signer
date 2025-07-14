@@ -14,33 +14,27 @@ readme = "README.md"
 
 [features]
 default = []
-rustls-tls = ["reqwest/rustls-tls"]
-tokio = ["dep:tokio"]
+rustls-tls = ["fireblocks-signer-transport/rustls-tls"]
 
 [dependencies]
 base64 = { version = "0.22" }
 bincode = "1"
-jsonwebtoken = { version = "9" }
-http = { version = "1" }
 ed25519-dalek = "=1.0.1"
+fireblocks-signer-transport = {  version = "0.1" } 
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = { version = "1" }
 sha2 = { version = "0.10" }
-solana-account-decoder = { version = ">=2.1" }
 solana-pubkey =  { version = ">=2.1", features = ["serde"]}
-solana-rpc-client = { version = ">=2.1", default-features = false }
-solana-rpc-client-api =  { version = ">=2.1"}
 solana-signer = { version = ">=2.1"} 
 solana-signature =  { version = ">=2.1"} 
 solana-transaction =   { version = ">=2.1" , features = ["bincode"]}
 solana-message = { version = ">=2.1"}
-solana-sdk = { version = ">=2.1", default-features = false }
+solana-instruction = { version = ">=2.1" }
+solana-hash = { version = ">=2.1" }
+# solana-sdk = { version = ">=2.1", default-features = false }
 solana-keypair = { version = "2" }
-# solana-sdk = { version = ">=2.1", default-features = false, features = ["full"] }
 rand = { version = "0.9" }
-reqwest = { version = "^0.12", features = ["json", "multipart", "blocking"] }
 thiserror = "2"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"], optional = true }
 tracing = { version = "0.1" }
 bon = "3.6.4"
 
@@ -51,6 +45,9 @@ dotenvy= "0.15"
 spl-memo = { version = "6" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
-solana-sdk = { version = ">=2.1", default-features = false, features = ["full"] }
+solana-sdk = { version = "2", default-features = false, features = ["full"] }
+solana-account-decoder = { version = ">=2.1" }
 tokio = { version = "1", features = ["full"] }
 actix-web = "4"
+solana-rpc-client = { version = "2", default-features = false }
+solana-rpc-client-api =  { version = "2"}

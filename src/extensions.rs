@@ -13,9 +13,10 @@
 //! Credit: Shameless borrowed from <https://github.com/ifiokjr/wasm_solana/blob/main/crates/wasm_client_solana/src/extensions.rs>
 
 use {
+    solana_hash::Hash,
+    solana_instruction::Instruction,
     solana_message::{AddressLookupTableAccount, CompileError, VersionedMessage, v0},
     solana_pubkey::Pubkey,
-    solana_sdk::{hash::Hash, instruction::Instruction},
     solana_signature::Signature,
     solana_signer::{SignerError, signers::Signers},
     solana_transaction::versioned::VersionedTransaction,

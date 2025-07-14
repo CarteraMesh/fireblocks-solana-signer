@@ -16,391 +16,165 @@
 //! successfully!
 
 mod asset;
-mod client;
 mod error;
 mod extensions;
-mod jwt;
-mod models;
 mod signer;
-mod util;
 
-pub use {asset::*, client::*, error::Error, extensions::*, models::*, signer::*};
-
+pub use {
+    asset::*,
+    error::Error,
+    extensions::*,
+    fireblocks_signer_transport::{
+        Client,
+        ClientBuilder,
+        FIREBLOCKS_API,
+        FIREBLOCKS_SANDBOX_API,
+        TransactionResponse,
+        TransactionStatus,
+    },
+    signer::*,
+    solana_pubkey::{Pubkey, pubkey},
+    solana_signature::Signature,
+    solana_signer::Signer,
+    std::str::FromStr,
+};
 /// A type alias for [`std::result::Result`] with this crate's [`Error`] type.
 pub type Result<T> = std::result::Result<T, Error>;
+pub const DEFAULT_CLIENT_TIMEOUT: u8 = 15;
 
-/// The production Fireblocks API endpoint.
-pub const FIREBLOCKS_API: &str = "https://api.fireblocks.io";
-
-/// The sandbox Fireblocks API endpoint for testing.
-pub const FIREBLOCKS_SANDBOX_API: &str = "https://sandbox-api.fireblocks.io";
-
-#[cfg(test)]
-mod test_utils {
-    use {
-        solana_sdk::instruction::Instruction,
-        std::{env, sync::Once},
-        tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
-    };
-    pub static INIT: Once = Once::new();
-    pub fn memo(message: &str) -> Instruction {
-        Instruction {
-            program_id: spl_memo::id(),
-            accounts: vec![],
-            data: message.as_bytes().to_vec(),
+/// See [`build_client_and_address_blocking_safe`]
+pub fn build_client_safe(builder: ClientBuilder) -> Result<Client> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if tx.send(builder.build()).is_err() {
+            tracing::error!("Failed to send result back to main thread");
         }
-    }
-    #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
-    pub fn setup() {
-        INIT.call_once(|| {
-            tracing_subscriber::fmt()
-                .with_target(true)
-                .with_level(true)
-                .with_span_events(FmtSpan::CLOSE)
-                .with_env_filter(EnvFilter::from_default_env())
-                .init();
+    });
+    Ok(rx.recv()??)
+}
 
-            if env::var("CI").is_err() {
-                // only load .env if not in CI
-                let env = dotenvy::dotenv();
-                if env.is_err() {
-                    tracing::debug!("no .env file");
+/// Builds a Fireblocks client and retrieves the associated Solana address in a
+/// tokio-safe manner.
+///
+/// This function is specifically designed for applications running in a tokio
+/// runtime environment. The underlying `fireblocks_signer_transport::Client`
+/// uses blocking HTTP operations via `reqwest` that can cause panics when
+/// called directly from within a tokio async context. This function
+/// prevents such panics by executing the blocking operations in a separate OS
+/// thread.
+///
+/// # Tokio Runtime Safety
+///
+/// **Important**: This function is primarily intended for programs running
+/// under tokio runtime. The `reqwest` crate's blocking client will panic if
+/// used directly in an async tokio context because it attempts to create a new
+/// tokio runtime while one is already running. This function solves that
+/// problem by:
+///
+/// 1. Spawning a separate OS thread (not a tokio task)
+/// 2. Performing all blocking operations in that thread
+/// 3. Using a channel to safely communicate results back to the main thread
+/// 4. Including timeout handling to prevent indefinite blocking
+///
+/// # Parameters
+///
+/// * `builder` - A configured `ClientBuilder` for creating the Fireblocks
+///   client
+/// * `vault` - The Fireblocks vault ID to use
+/// * `asset` - The asset type (typically Solana) for address derivation
+/// * `address` - Optional pre-existing address string. If `None`, the address
+///   will be fetched from Fireblocks
+///
+/// # Returns
+///
+/// Returns a tuple containing:
+/// * `fireblocks_signer_transport::Client` - The configured Fireblocks client
+/// * `Pubkey` - The Solana public key/address associated with the vault and
+///   asset
+///
+/// # Errors
+///
+/// This function can return various errors:
+/// * `Error::Timeout` - If client initialization takes longer than the
+///   configured timeout
+/// * `Error::ThreadPanic` - If the worker thread panics during initialization
+/// * `Error::ChannelClosed` - If the communication channel closes unexpectedly
+/// * Other `Error` variants from the underlying Fireblocks client or address
+///   parsing
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use {
+///     fireblocks_signer_transport::ClientBuilder,
+///     fireblocks_solana_signer::{Asset, build_client_and_address_blocking_safe},
+/// };
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let builder = ClientBuilder::new("api_key", "private_key", "endpoint");
+///     let vault_id = "vault_123".to_string();
+///     let asset = Asset::Sol;
+///
+///     // Safe to call from within tokio runtime
+///     let (client, pubkey) =
+///         build_client_and_address_blocking_safe(builder, vault_id, asset, None)?;
+///
+///     println!("Initialized client with address: {}", pubkey);
+///     Ok(())
+/// }
+/// ```
+pub fn build_client_and_address_blocking_safe(
+    builder: ClientBuilder,
+    vault: String,
+    asset: Asset,
+    address: Option<String>,
+) -> Result<(fireblocks_signer_transport::Client, Pubkey)> {
+    let client = build_client_safe(builder)?;
+    match address {
+        Some(pk) => Ok((client, Pubkey::from_str(&pk)?)),
+        None => {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let handle = std::thread::spawn(move || {
+                let result = match client.address(&vault, &asset) {
+                    Err(e) => Err(crate::Error::from(e)),
+                    Ok(pk) => match Pubkey::from_str(&pk) {
+                        Err(e) => Err(crate::Error::from(e)),
+                        Ok(pk) => Ok((client, pk)),
+                    },
+                };
+                // Don't ignore send errors
+                if tx.send(result).is_err() {
+                    tracing::error!("Failed to send result back to main thread");
+                }
+            });
+            tracing::debug!("waiting for client builder response...");
+
+            // Add timeout to prevent infinite blocking
+            match rx.recv_timeout(std::time::Duration::from_secs(
+                (DEFAULT_CLIENT_TIMEOUT + 5).into(),
+            )) {
+                Ok(result) => Ok(result?),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    tracing::error!("Client initialization timed out");
+                    Err(Error::Timeout(
+                        "Client initialization timed out".to_string(),
+                    ))
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    // Check if thread panicked
+                    if let Err(panic_err) = handle.join() {
+                        tracing::error!("Client initialization thread panicked: {:?}", panic_err);
+                        Err(Error::ThreadPanic(
+                            "Client initialization thread panicked".to_string(),
+                        ))
+                    } else {
+                        Err(Error::ChannelClosed(
+                            "Channel disconnected unexpectedly".to_string(),
+                        ))
+                    }
                 }
             }
-        });
-    }
-}
-
-#[cfg(not(feature = "tokio"))]
-#[cfg(test)]
-mod test {
-
-    use {
-        super::*,
-        base64::prelude::*,
-        solana_message::Message,
-        solana_pubkey::{Pubkey, pubkey},
-        solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
-        solana_signer::Signer,
-        solana_transaction::{Transaction, versioned::VersionedTransaction},
-        std::{sync::Arc, time::Duration},
-        test_utils::*,
-    };
-    pub const LOOKUP: Pubkey = pubkey!("24DJ3Um2ekF2isQVMZcNHusmzLMMUS1oHQXhpPkVX7WV");
-    #[allow(dead_code)]
-    pub const USDC: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
-    pub const TO: Pubkey = pubkey!("E4SfgGV2v9GLYsEkCQhrrnFbBcYmAiUZZbJ7swKGzZHJ");
-
-    fn clients() -> anyhow::Result<(Client, Arc<RpcClient>)> {
-        let api_key: String =
-            std::env::var("FIREBLOCKS_API_KEY").expect("FIREBLOCKS_API_KEY is not set");
-        let key: String = std::env::var("FIREBLOCKS_SECRET").expect("FIREBLOCKS_SECRET is not set");
-        let rsa_pem = key.as_bytes().to_vec();
-        let rpc = Arc::new(RpcClient::new(
-            std::env::var("RPC_URL")
-                .ok()
-                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
-        ));
-
-        Ok((
-            ClientBuilder::new(&api_key, &rsa_pem)
-                .with_sandbox()
-                .with_user_agent("fireblocks-solana-signer-test")
-                .with_timeout(Duration::from_secs(15))
-                .build()?,
-            rpc,
-        ))
-    }
-
-    fn signer() -> anyhow::Result<(FireblocksSigner, Arc<RpcClient>)> {
-        let (client, rpc) = clients()?;
-        let poll = PollConfig::builder()
-            .timeout(Duration::from_secs(15))
-            .interval(Duration::from_secs(3))
-            .callback(|t| tracing::info!("{}", t))
-            .build();
-        let pk = client.address("0", "SOL_TEST")?;
-        tracing::info!("using pubkey {}", pk);
-
-        let signer = FireblocksSigner::builder()
-            .client(client)
-            .pk(pk)
-            .vault_id("0".to_string())
-            .asset(SOL_TEST)
-            .poll_config(poll)
-            .build();
-
-        Ok((signer, rpc))
-    }
-
-    #[test]
-    fn test_client() -> anyhow::Result<()> {
-        setup();
-        let (client, rpc) = clients()?;
-        let pk = client.address("0", "SOL_TEST")?;
-        tracing::info!("using pubkey {}", pk);
-        let hash = rpc.get_latest_blockhash()?;
-        let message = Message::new_with_blockhash(&[memo("fireblocks signer")], Some(&pk), &hash);
-        let tx = Transaction::new_unsigned(message);
-        let base64_tx = BASE64_STANDARD.encode(bincode::serialize(&tx)?);
-        let resp = client.program_call("SOL_TEST", "0", base64_tx)?;
-        tracing::info!("txid {resp}");
-        let (resp, sig) = client.poll(
-            &resp.id,
-            std::time::Duration::from_secs(90),
-            Duration::from_secs(7),
-            |t| tracing::info!("transaction status {t}"),
-        )?;
-        assert!(sig.is_some());
-        let sig = sig.unwrap_or_default();
-        tracing::info!("sig {sig} txid {}", resp.id);
-        Ok(())
-    }
-
-    #[test]
-    fn test_signer_legacy() -> anyhow::Result<()> {
-        setup();
-        let (signer, rpc) = signer()?;
-        let hash = rpc.get_latest_blockhash()?;
-        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
-        let mut tx = Transaction::new_unsigned(message);
-        assert!(signer.is_interactive());
-        tx.try_sign(&[&signer], hash)?;
-        tracing::info!("sig {}", tx.get_signature());
-        Ok(())
-    }
-
-    #[test]
-    fn test_signer_versioned() -> anyhow::Result<()> {
-        setup();
-        let (signer, rpc) = signer()?;
-        let instructions = vec![
-            memo("fireblocks signer versioned"),
-            memo("lookup this"),
-            solana_sdk::system_instruction::transfer(&signer.pk, &TO, 1),
-        ];
-        let hash = rpc.get_latest_blockhash()?;
-        let alt = crate::util::lookup(&rpc, &[LOOKUP])?;
-        let mut tx = VersionedTransaction::new_unsigned_v0(&signer.pk, &instructions, &alt, hash)?;
-        tx.try_sign(&[&signer], None)?;
-        tracing::info!("sig {}", tx.get_signature());
-        Ok(())
-    }
-
-    #[test]
-    fn test_env() -> anyhow::Result<()> {
-        setup();
-        let _ = FireblocksSigner::try_from_env(None)?;
-        let _ = FireblocksSigner::try_from_env(Some(|t| println!("{t}")))?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_keypair() -> anyhow::Result<()> {
-        setup();
-        let (_, rpc) = signer()?;
-        let signer = FireblocksSigner::new();
-        let hash = rpc.get_latest_blockhash()?;
-        let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
-        let mut tx = Transaction::new_unsigned(message);
-        tx.try_sign(&[&signer], hash)?;
-        tracing::info!("sig {}", tx.get_signature());
-
-        let base64 = signer.to_base58_string();
-        let from_base64 = FireblocksSigner::from_base58_string(&base64);
-        assert_eq!(signer.pk, from_base64.pk);
-        let b = signer.to_bytes();
-        let from_b = FireblocksSigner::from_bytes(&b)?;
-        assert_eq!(signer.pk, from_b.pk);
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "tokio")]
-#[cfg(test)]
-mod tokio_test {
-    use {
-        super::*,
-        solana_message::{Message, VersionedMessage},
-        solana_rpc_client::rpc_client::SerializableTransaction,
-        solana_signer::Signer,
-        solana_transaction::{Transaction, versioned::VersionedTransaction},
-        test_utils::{memo, setup},
-    };
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_tokio() -> anyhow::Result<()> {
-        setup();
-        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
-            std::env::var("RPC_URL")
-                .ok()
-                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
-        );
-        let signer = FireblocksSigner::try_from_env(None).await?;
-        let hash = rpc.get_latest_blockhash().await?;
-        let message = Message::new(&[memo("fireblocks signer tokio")], Some(&signer.pk));
-        assert!(signer.is_interactive());
-
-        // Sign the transaction directly - no need for spawn_blocking as try_sign
-        // will use the tokio version of sign_message
-        let mut tx = Transaction::new_unsigned(message);
-        tx.try_sign(&[&signer], hash)?;
-
-        let signature = tx.get_signature();
-        tracing::info!("Transaction signature: {:?}", signature);
-        Ok(())
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_tokio_try_new() -> anyhow::Result<()> {
-        setup();
-        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
-            std::env::var("RPC_URL")
-                .ok()
-                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
-        );
-        let signer = FireblocksSigner::try_from_env(None).await?;
-        let hash = rpc.get_latest_blockhash().await?;
-        let message = Message::new_with_blockhash(
-            &[memo("fireblocks signer tokio")],
-            Some(&signer.pk),
-            &hash,
-        );
-        let message = VersionedMessage::Legacy(message);
-        let tx = VersionedTransaction::try_new(message, &[&signer])?;
-        let signature = tx.get_signature();
-        tracing::info!("Transaction signature: {:?}", signature);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_tokio_one_worker() -> anyhow::Result<()> {
-        setup();
-        let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
-            std::env::var("RPC_URL")
-                .ok()
-                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
-        );
-        let signer = FireblocksSigner::try_from_env(None).await?;
-        let hash = rpc.get_latest_blockhash().await?;
-        let message = Message::new_with_blockhash(
-            &[memo("fireblocks signer tokio")],
-            Some(&signer.pk),
-            &hash,
-        );
-        let message = VersionedMessage::Legacy(message);
-        let tx = VersionedTransaction::try_new(message, &[&signer])?;
-        let signature = tx.get_signature();
-        tracing::info!("Transaction signature: {:?}", signature);
-        Ok(())
-    }
-
-    #[test]
-    fn test_tokio_in_sync_context() -> anyhow::Result<()> {
-        setup();
-        let rpc = solana_rpc_client::rpc_client::RpcClient::new(
-            std::env::var("RPC_URL")
-                .ok()
-                .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
-        );
-        let signer = FireblocksSigner::try_from_env_blocking(None)?;
-        let hash = rpc.get_latest_blockhash()?;
-        let message = Message::new(&[memo("fireblocks signer tokio")], Some(&signer.pk));
-        assert!(signer.is_interactive());
-
-        let mut tx = Transaction::new_unsigned(message);
-        tx.try_sign(&[&signer], hash)?;
-
-        let signature = tx.get_signature();
-        tracing::info!("Transaction signature: {:?}", signature);
-        Ok(())
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_builder() -> anyhow::Result<()> {
-        setup();
-        let _ = FireblocksSigner::new();
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_actix_web_integration() {
-        use {
-            actix_web::{App, HttpResponse, Responder, test, web},
-            std::sync::Arc,
-        };
-
-        // Mock handler that uses FireblocksSigner
-        async fn test_handler(signer: web::Data<Arc<FireblocksSigner>>) -> impl Responder {
-            // Test that we can get the public key without issues
-            match signer.try_pubkey() {
-                Ok(pubkey) => HttpResponse::Ok().json(serde_json::json!({
-                    "status": "success",
-                    "pubkey": pubkey.to_string()
-                })),
-                Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
-                    "status": "error",
-                    "error": e.to_string()
-                })),
-            }
         }
-
-        // Create a mock signer with a keypair (to avoid actual Fireblocks calls in
-        // tests)
-        let keypair = solana_keypair::Keypair::new();
-        let signer = FireblocksSigner::builder()
-            .vault_id("test".to_string())
-            .asset(SOL_TEST)
-            .pk(keypair.pubkey())
-            .poll_config(PollConfig::default())
-            .keypair(Some(Arc::new(keypair)))
-            .build();
-
-        let signer_data = Arc::new(signer);
-
-        // Create test app
-        let app = test::init_service(
-            App::new()
-                .app_data(web::Data::new(signer_data.clone()))
-                .route("/test", web::get().to(test_handler)),
-        )
-        .await;
-
-        // Test the endpoint
-        let req = test::TestRequest::get().uri("/test").to_request();
-        let resp = test::call_service(&app, req).await;
-
-        assert!(resp.status().is_success());
-
-        let body_bytes = test::read_body(resp).await;
-        let response: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
-
-        assert_eq!(response["status"], "success");
-        assert!(response["pubkey"].is_string());
-    }
-
-    #[tokio::test]
-    async fn test_thread_spawn_approach() {
-        setup();
-
-        // Test that our std::thread::spawn approach works in tokio test context
-        let keypair = solana_keypair::Keypair::new();
-        let signer = FireblocksSigner::builder()
-            .vault_id("test".to_string())
-            .asset(SOL_TEST)
-            .pk(keypair.pubkey())
-            .poll_config(PollConfig::default())
-            .keypair(Some(Arc::new(keypair)))
-            .build();
-
-        // Test signing a message
-        let test_message = b"test message for signing";
-        let result = signer.try_sign_message(test_message);
-
-        assert!(result.is_ok(), "Signing should succeed: {:?}", result);
-
-        let signature = result.unwrap();
-        assert_ne!(signature.to_string(), "11111111111111111111111111111111");
     }
 }

@@ -3,10 +3,6 @@ enable-all-features = true
 
 # Pre-release checks
 pre-release-commit-message = "chore: release {{crate_name}} v{{version}}"
-pre-release-replacements = [
-  { file = "README.md", search = "fireblocks-solana-signer = \"[^\"]*\"", replace = "fireblocks-solana-signer = \"{{version}}\"" },
-  { file = "README.md", search = "fireblocks-solana-signer@[^\\s]*", replace = "fireblocks-solana-signer@{{version}}" },
-]
 
 # Tag settings
 tag-message = "chore: release v{{version}}"
