@@ -32,26 +32,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fireblocks-solana-signer = "1.0.9"
+fireblocks-solana-signer = "1"
 ```
 
 Or install via cargo:
 
 ```bash
-cargo add fireblocks-solana-signer@1.0.9
+cargo add fireblocks-solana-signer@1
 ```
-
-### Optional Features
-
-The crate provides optional features that can be enabled in your `Cargo.toml`:
-
-```toml
-[dependencies]
-fireblocks-solana-signer = { version = "1.0.4", features = ["tokio", "rustls-tls"] }
-```
-
-- **tokio**: Enables async support using tokio's `spawn_blocking` for non-blocking operations in async applications
-- **rustls-tls**: Uses rustls instead of native-tls for TLS support
 
 ## ⚠️ IMPORTANT: Automatic Transaction Broadcasting
 
@@ -118,6 +106,7 @@ See [example](./examples/memo.rs)
 | FIREBLOCKS_SECRET        | RSA private key of your API user                      |
 | FIREBLOCKS_API_KEY       | uuid of api user                                      |
 | FIREBLOCKS_ENDPOINT      | https://sandbox-api.fireblocks.io                     |
+| FIREBLOCKS_PUBKEY        | **optional** pubkey, or lookup based on `FIREBLOCKS_VAULT` | 
 | FIREBLOCKS_DEVNET        | set to any value if you are on devnet                 |
 | FIREBLOCKS_VAULT         | your vault id                                         |
 | FIREBLOCKS_POLL_TIMEOUT  | in seconds, total time to check status of transaction |

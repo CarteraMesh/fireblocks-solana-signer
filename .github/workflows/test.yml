@@ -126,7 +126,6 @@ jobs:
       matrix:
         features:
           - "default"
-          - "tokio"
     steps:
       - uses: actions/checkout@v4
       - name: Install stable
@@ -154,43 +153,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov-${{ matrix.features }}.info
           flags: ${{ matrix.features }}
-          env_vars: OS,RUST
-
-  coverage-combined:
-    # Alternative approach: single job that combines coverage from both feature sets
-    # Enable this by changing "if: false" to "if: true" and disable the matrix coverage job above
-    runs-on: ubicloud-standard-2
-    name: ubuntu / stable / coverage-combined
-    if: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - name: Install lcov for combining reports
-        run: sudo apt-get update && sudo apt-get install -y lcov
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: cargo llvm-cov (combined)
-        run: |
-          # Run coverage for default features
-          cargo llvm-cov --locked --lcov --output-path lcov-default.info
-          # Run coverage for tokio features  
-          cargo llvm-cov --locked --features tokio --lcov --output-path lcov-tokio.info
-          # Combine the reports
-          lcov --add-tracefile lcov-default.info --add-tracefile lcov-tokio.info --output-file lcov-combined.info
-      - name: Record Rust version
-        run: echo "RUST=$(rustc --version)" >> "$GITHUB_ENV"
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: lcov-combined.info
           env_vars: OS,RUST

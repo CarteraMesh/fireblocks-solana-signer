@@ -1,12 +1,9 @@
-use thiserror::Error;
+use {std::sync::mpsc::RecvError, thiserror::Error};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     PubkeyError(#[from] solana_pubkey::ParsePubkeyError),
-
-    #[error("Failed to get vault account {0}")]
-    FireblocksVaultError(String),
 
     #[error(transparent)]
     BincodeEncodeError(#[from] bincode::Error),
@@ -21,16 +18,13 @@ pub enum Error {
     FireblocksNoPubkey(String),
 
     #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
+    ChannelRecvError(#[from] RecvError),
 
     #[error(transparent)]
-    JwtError(#[from] crate::jwt::JwtError),
+    SignatureError(#[from] solana_signature::ParseSignatureError),
 
     #[error(transparent)]
-    TokenError(#[from] jsonwebtoken::errors::Error),
-
-    #[error("{0}")]
-    FireblocksServerError(String),
+    FireblocksClientError(#[from] fireblocks_signer_transport::FireblocksClientError),
 
     #[error("{0}")]
     JsonParseErr(String),
@@ -38,8 +32,14 @@ pub enum Error {
     #[error(transparent)]
     JsonErr(#[from] serde_json::Error),
 
-    #[error("Operation timed out")]
-    Timeout,
+    #[error("Operation timed out {0}")]
+    Timeout(String),
+
+    #[error("{0}")]
+    ThreadPanic(String),
+
+    #[error("{0}")]
+    ChannelClosed(String),
 
     #[error("Solan RPC error {0}")]
     ParseAddressTableError(String),

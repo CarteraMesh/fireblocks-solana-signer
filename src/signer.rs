@@ -50,7 +50,7 @@ use {
     solana_signature::Signature,
     solana_signer::Signer,
     solana_transaction::versioned::VersionedTransaction,
-    std::{fmt::Debug, sync::Arc, time::Duration},
+    std::{fmt::Debug, str::FromStr, sync::Arc, time::Duration},
 };
 pub use {keypair::keypair_from_seed, poll::*};
 
@@ -221,15 +221,16 @@ impl FireblocksSigner {
                 );
             }
         };
-        sig.ok_or_else(|| {
-            crate::Error::FireblocksNoSig(format!(
+        match sig {
+            None => Err(crate::Error::FireblocksNoSig(format!(
                 "No Signature available for txid {result} {}",
                 result
                     .error_description
                     .as_ref()
                     .map_or("unknown error", |v| v)
-            ))
-        })
+            ))),
+            Some(s) => Ok(Signature::from_str(&s)?),
+        }
     }
 
     /// Creates a new [`FireblocksSigner`] from environment variables.
@@ -308,41 +309,7 @@ impl FireblocksSigner {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// When the "tokio" feature is enabled, this function can be called in an
-    /// async context:
-    ///
-    /// ```no_run
-    /// # #[cfg(feature = "tokio")]
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # use fireblocks_solana_signer::FireblocksSigner;
-    /// // Create signer asynchronously
-    /// let signer = FireblocksSigner::try_from_env(None).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(not(feature = "tokio"))]
     pub fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
-        Self::try_from_env_impl(f)
-    }
-
-    #[cfg(feature = "tokio")]
-    pub async fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
-        use tokio::task::spawn_blocking;
-
-        let f_clone = f;
-        let result = spawn_blocking(move || Self::try_from_env_impl(f_clone)).await;
-
-        match result {
-            Ok(signer_result) => signer_result,
-            Err(join_error) => Err(crate::Error::JoinError(format!(
-                "Failed to join tokio task: {join_error}"
-            ))),
-        }
-    }
-
-    /// Internal implementation of try_from_env
-    fn try_from_env_impl(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
         let vault = std::env::var("FIREBLOCKS_VAULT")?;
         let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
             || std::env::var("FIREBLOCKS_DEVNET").is_ok()
@@ -353,15 +320,18 @@ impl FireblocksSigner {
         };
         let key = std::env::var("FIREBLOCKS_SECRET")?;
         let api = std::env::var("FIREBLOCKS_API_KEY")?;
+        let address: Option<String> = std::env::var("FIREBLOCKS_PUBKEY").ok();
         let endpoint = std::env::var("FIREBLOCKS_ENDPOINT")?;
         let rsa_pem = key.as_bytes().to_vec();
-        let client = ClientBuilder::new(&api, &rsa_pem)
+        let builder = ClientBuilder::new(&api, &rsa_pem)
             .with_url(&endpoint)
-            .with_timeout(Duration::from_secs(15))
-            .build()?;
-
-        let pk = client.address(&vault, &asset)?;
-
+            .with_timeout(Duration::from_secs(crate::DEFAULT_CLIENT_TIMEOUT.into()));
+        let (client, pk) = crate::build_client_and_address_blocking_safe(
+            builder,
+            vault.clone(),
+            asset.clone(),
+            address,
+        )?;
         let default_poll = PollConfig::default();
         let poll_timeout = Duration::from_secs(
             std::env::var("FIREBLOCKS_POLL_TIMEOUT")
@@ -389,21 +359,6 @@ impl FireblocksSigner {
             .poll_config(poll)
             .pk(pk)
             .build())
-    }
-
-    #[cfg(feature = "tokio")]
-    /// Creates a new `FireblocksSigner` from environment variables in a
-    /// blocking manner.
-    ///
-    /// This function is intended for use in synchronous contexts when the
-    /// `tokio` feature is enabled.
-    ///
-    /// # Panics
-    ///
-    /// This function uses blocking I/O and will panic if called from within an
-    /// existing Tokio runtime.
-    pub fn try_from_env_blocking(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
-        Self::try_from_env_impl(f)
     }
 }
 
@@ -446,58 +401,29 @@ impl Signer for FireblocksSigner {
     ) -> std::result::Result<Signature, solana_signer::SignerError> {
         match &self.keypair {
             Some(kp) => kp.try_sign_message(message),
-            #[cfg(not(feature = "tokio"))]
-            None => self
-                .sign_transaction(message)
-                .map_err(|e| solana_signer::SignerError::Custom(format!("{e}"))),
-            #[cfg(feature = "tokio")]
             None => {
                 let message_vec = message.to_vec();
                 let signer = self.clone();
-                // Use a oneshot channel to get the result back synchronously
+
+                tracing::debug!("spawning sign_transaction call with std::thread::spawn");
+
+                // Use std::thread::spawn for universal compatibility across all contexts
                 let (tx, rx) = std::sync::mpsc::channel();
-                // Spawn the async work
-                if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                    let metrics = handle.metrics();
-                    if metrics.num_workers() <= 1 {
-                        return Err(solana_signer::SignerError::Custom(
-                            "FireblocksSigner cannot be used in single-threaded Tokio runtime due \
-                             to deadlock risk. Use multi-threaded runtime or call from non-async \
-                             context."
-                                .to_string(),
-                        ));
-                    }
-                    tracing::debug!("spawning sign_transaction call");
-                    handle.spawn(async move {
-                        let result = tokio::task::spawn_blocking(move || {
-                            signer.sign_transaction(&message_vec)
-                        })
-                        .await;
 
-                        let final_result = match result {
-                            Ok(Ok(sig)) => Ok(sig),
-                            Ok(Err(e)) => Err(solana_signer::SignerError::Custom(format!("{e}"))),
-                            Err(e) => Err(solana_signer::SignerError::Custom(format!(
-                                "Join error: {e}"
-                            ))),
-                        };
+                std::thread::spawn(move || {
+                    let result = signer.sign_transaction(&message_vec);
+                    let final_result =
+                        result.map_err(|e| solana_signer::SignerError::Custom(format!("{e}")));
+                    let _ = tx.send(final_result);
+                });
 
-                        let _ = tx.send(final_result);
-                    });
-
-                    tracing::debug!("waiting for response...");
-                    // Wait for the result synchronously
-                    rx.recv().unwrap_or_else(|_| {
-                        Err(solana_signer::SignerError::Custom(
-                            "Channel closed".to_string(),
-                        ))
-                    })
-                } else {
-                    // If not in a runtime, we can call the blocking function directly.
-                    // There's no runtime to deadlock.
-                    self.sign_transaction(message)
-                        .map_err(|e| solana_signer::SignerError::Custom(format!("{e}")))
-                }
+                tracing::debug!("waiting for response...");
+                // Wait for the result synchronously (could take 2+ minutes)
+                rx.recv().unwrap_or_else(|_| {
+                    Err(solana_signer::SignerError::Custom(
+                        "Channel closed".to_string(),
+                    ))
+                })
             }
         }
     }
