@@ -38,6 +38,59 @@ pub use {
     solana_signer::Signer,
     std::str::FromStr,
 };
+
+/// Environment variables used by the FireblocksSigner.
+#[derive(Debug, Clone, Copy)]
+pub enum EnvVar {
+    Vault,
+    Secret,
+    ApiKey,
+    Endpoint,
+    Pubkey,
+    Testnet,
+    Devnet,
+    PollTimeout,
+    PollInterval,
+}
+
+impl std::fmt::Display for EnvVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            EnvVar::Vault => "FIREBLOCKS_VAULT",
+            EnvVar::Secret => "FIREBLOCKS_SECRET",
+            EnvVar::ApiKey => "FIREBLOCKS_API_KEY",
+            EnvVar::Endpoint => "FIREBLOCKS_ENDPOINT",
+            EnvVar::Pubkey => "FIREBLOCKS_PUBKEY",
+            EnvVar::Testnet => "FIREBLOCKS_TESTNET",
+            EnvVar::Devnet => "FIREBLOCKS_DEVNET",
+            EnvVar::PollTimeout => "FIREBLOCKS_POLL_TIMEOUT",
+            EnvVar::PollInterval => "FIREBLOCKS_POLL_INTERVAL",
+        };
+        write!(f, "{name}")
+    }
+}
+
+impl AsRef<std::ffi::OsStr> for EnvVar {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        match self {
+            EnvVar::Vault => std::ffi::OsStr::new("FIREBLOCKS_VAULT"),
+            EnvVar::Secret => std::ffi::OsStr::new("FIREBLOCKS_SECRET"),
+            EnvVar::ApiKey => std::ffi::OsStr::new("FIREBLOCKS_API_KEY"),
+            EnvVar::Endpoint => std::ffi::OsStr::new("FIREBLOCKS_ENDPOINT"),
+            EnvVar::Pubkey => std::ffi::OsStr::new("FIREBLOCKS_PUBKEY"),
+            EnvVar::Testnet => std::ffi::OsStr::new("FIREBLOCKS_TESTNET"),
+            EnvVar::Devnet => std::ffi::OsStr::new("FIREBLOCKS_DEVNET"),
+            EnvVar::PollTimeout => std::ffi::OsStr::new("FIREBLOCKS_POLL_TIMEOUT"),
+            EnvVar::PollInterval => std::ffi::OsStr::new("FIREBLOCKS_POLL_INTERVAL"),
+        }
+    }
+}
+
+impl From<(EnvVar, std::env::VarError)> for Error {
+    fn from((env_var, _): (EnvVar, std::env::VarError)) -> Self {
+        Error::EnvMissing(env_var.to_string())
+    }
+}
 /// A type alias for [`std::result::Result`] with this crate's [`Error`] type.
 pub type Result<T> = std::result::Result<T, Error>;
 pub const DEFAULT_CLIENT_TIMEOUT: u8 = 15;
@@ -105,14 +158,11 @@ pub fn build_client_safe(builder: ClientBuilder) -> Result<Client> {
 /// # Example
 ///
 /// ```rust,no_run
-/// use {
-///     fireblocks_signer_transport::ClientBuilder,
-///     fireblocks_solana_signer::{Asset, build_client_and_address_blocking_safe},
-/// };
+/// use fireblocks_solana_signer::{Asset, ClientBuilder, build_client_and_address_blocking_safe};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let builder = ClientBuilder::new("api_key", "private_key", "endpoint");
+///     let builder = ClientBuilder::new("api_key", b"private_key");
 ///     let vault_id = "vault_123".to_string();
 ///     let asset = Asset::Sol;
 ///
