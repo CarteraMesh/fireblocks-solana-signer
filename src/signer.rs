@@ -38,6 +38,7 @@ use {
         Asset,
         Client,
         ClientBuilder,
+        EnvVar,
         Error,
         Result,
         TransactionStatus,
@@ -310,18 +311,18 @@ impl FireblocksSigner {
     /// # }
     /// ```
     pub fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
-        let vault = std::env::var("FIREBLOCKS_VAULT")?;
-        let asset = if std::env::var("FIREBLOCKS_TESTNET").is_ok()
-            || std::env::var("FIREBLOCKS_DEVNET").is_ok()
-        {
-            crate::SOL_TEST
-        } else {
-            crate::SOL
-        };
-        let key = std::env::var("FIREBLOCKS_SECRET")?;
-        let api = std::env::var("FIREBLOCKS_API_KEY")?;
-        let address: Option<String> = std::env::var("FIREBLOCKS_PUBKEY").ok();
-        let endpoint = std::env::var("FIREBLOCKS_ENDPOINT")?;
+        let vault = std::env::var(EnvVar::Vault).map_err(|e| Error::from((EnvVar::Vault, e)))?;
+        let asset =
+            if std::env::var(EnvVar::Testnet).is_ok() || std::env::var(EnvVar::Devnet).is_ok() {
+                crate::SOL_TEST
+            } else {
+                crate::SOL
+            };
+        let key = std::env::var(EnvVar::Secret).map_err(|e| Error::from((EnvVar::Secret, e)))?;
+        let api = std::env::var(EnvVar::ApiKey).map_err(|e| Error::from((EnvVar::ApiKey, e)))?;
+        let address: Option<String> = std::env::var(EnvVar::Pubkey).ok();
+        let endpoint =
+            std::env::var(EnvVar::Endpoint).map_err(|e| Error::from((EnvVar::Endpoint, e)))?;
         let rsa_pem = key.as_bytes().to_vec();
         let builder = ClientBuilder::new(&api, &rsa_pem)
             .with_url(&endpoint)
@@ -334,13 +335,13 @@ impl FireblocksSigner {
         )?;
         let default_poll = PollConfig::default();
         let poll_timeout = Duration::from_secs(
-            std::env::var("FIREBLOCKS_POLL_TIMEOUT")
+            std::env::var(EnvVar::PollTimeout)
                 .unwrap_or_else(|_| "60".to_string())
                 .parse()
                 .unwrap_or(60),
         );
         let poll_interval = Duration::from_secs(
-            std::env::var("FIREBLOCKS_POLL_INTERVAL")
+            std::env::var(EnvVar::PollInterval)
                 .unwrap_or_else(|_| "5".to_string())
                 .parse()
                 .unwrap_or(5),
