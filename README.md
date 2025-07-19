@@ -83,21 +83,21 @@ fn main() -> anyhow::Result<()> {
     let hash = rpc.get_latest_blockhash()?;
     let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
     let mut tx = Transaction::new_unsigned(message);
-    
+
     // ⚠️ This signs AND broadcasts the transaction automatically!
     tx.try_sign(&[&signer], hash)?;
-    
+
     // ✅ Transaction is already on-chain, just get the signature
     println!("Transaction broadcasted with signature: {}", tx.get_signature());
-    
+
     // ❌ DO NOT do this - transaction is already broadcasted!
     // rpc.send_transaction(&tx)?; // This will likely fail
-    
+
     Ok(())
 }
 ```
 
-See [example](./examples/memo.rs) 
+See [example](./examples/memo.rs)
 
 ## Environment Variables
 
@@ -106,7 +106,7 @@ See [example](./examples/memo.rs)
 | FIREBLOCKS_SECRET        | RSA private key of your API user                      |
 | FIREBLOCKS_API_KEY       | uuid of api user                                      |
 | FIREBLOCKS_ENDPOINT      | https://sandbox-api.fireblocks.io                     |
-| FIREBLOCKS_PUBKEY        | **optional** pubkey, or lookup based on `FIREBLOCKS_VAULT` | 
+| FIREBLOCKS_PUBKEY        | **optional** pubkey, or lookup based on `FIREBLOCKS_VAULT` |
 | FIREBLOCKS_DEVNET        | set to any value if you are on devnet                 |
 | FIREBLOCKS_VAULT         | your vault id                                         |
 | FIREBLOCKS_POLL_TIMEOUT  | in seconds, total time to check status of transaction |
@@ -166,23 +166,23 @@ use fireblocks_solana_signer::FireblocksSigner;
 
 fn main() -> anyhow::Result<()> {
     // Use default configuration profile
-    let signer = FireblocksSigner::try_from_config(
+    let signer = FireblocksSigner::try_from_config::<String>(
         &[],
         |tx_response| println!("Transaction status: {}", tx_response)
     )?;
-    
+
     // Use specific configuration profiles
     let signer = FireblocksSigner::try_from_config(
         &["mainnet"],
         |tx_response| eprintln!("Mainnet TX: {}", tx_response)
     )?;
-    
+
     // Use multiple profiles (later profiles override earlier ones)
     let signer = FireblocksSigner::try_from_config(
         &["default", "production"],
         |tx_response| println!("TX Update: {}", tx_response)
     )?;
-    
+
     // Your transaction code here...
     Ok(())
 }
@@ -237,7 +237,7 @@ For detailed configuration options and file locations, see the [`fireblocks-conf
    ```bash
    # Copy and configure environment variables
    cp env-sample .env
-   
+
    # Install Rust nightly for formatting
    rustup install nightly
    ```
@@ -246,10 +246,10 @@ For detailed configuration options and file locations, see the [`fireblocks-conf
    ```bash
    # Build the project
    cargo build
-   
+
    # Run tests (requires valid Fireblocks credentials in .env)
    cargo test
-   
+
    # Format code (requires nightly)
    cargo +nightly fmt --all
    ```

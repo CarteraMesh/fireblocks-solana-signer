@@ -41,7 +41,7 @@ impl FireblocksSigner {
     /// use fireblocks_solana_signer::FireblocksSigner;
     ///
     /// // Create signer with default configuration and custom logging
-    /// let signer = FireblocksSigner::try_from_config(&[], |tx_response| {
+    /// let signer = FireblocksSigner::try_from_config::<String>(&[], |tx_response| {
     ///     println!("Transaction status: {}", tx_response)
     /// })?;
     ///
@@ -51,12 +51,6 @@ impl FireblocksSigner {
     ///     eprintln!("TX Update: {}", tx_response)
     /// })?;
     ///
-    /// // Create signer with a named callback function
-    /// fn my_callback(tx_response: &fireblocks_solana_signer::TransactionResponse) {
-    ///     println!("Transaction ID: {}", tx_response.id);
-    /// }
-    ///
-    /// let signer = FireblocksSigner::try_from_config(&[], my_callback)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     ///
