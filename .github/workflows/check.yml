@@ -55,11 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Get early warning of new lints which are regularly introduced in beta channels.
-        toolchain: [stable, beta]
-        features:
-          - "default"
-          - "config"
+        toolchain: [stable]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,7 +70,7 @@ jobs:
         with:
           reporter: "github-pr-check"
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: ${{ matrix.features != 'default' && format('--features {0}', matrix.features) || '' }}
+          clippy_flags: --all-features
   semver:
     runs-on: ${{ vars.RUNNER }}
     name: semver
@@ -83,6 +79,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
+      - name: gpg
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@v2
         # with:

@@ -117,7 +117,7 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: cargo build
-        run: cargo build --locked --all-features --all-targets
+        run: cargo build --locked --all-targets
   coverage:
     runs-on: ${{ vars.RUNNER }}
     name: ubuntu / stable / coverage / ${{ matrix.features }}

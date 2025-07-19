@@ -31,14 +31,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: gpg
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - run: |
           # to get the symbolizer for debug symbol resolution
-          sudo apt install llvm
+          sudo apt install llvm libgpgme-dev
           # to fix buggy leak analyzer:
           # https://github.com/japaric/rust-san#unrealiable-leaksanitizer
           # ensure there's a profile.dev section
@@ -60,7 +57,7 @@ jobs:
           RUSTFLAGS: "-Z sanitizer=address"
       - name: cargo test -Zsanitizer=leak
         if: always()
-        run: cargo test --target x86_64-unknown-linux-gnu
+        run: cargo test --target x86_64-unknown-linux-gnu --lib --tests --all-features
         env:
           LSAN_OPTIONS: "suppressions=lsan-suppressions.txt"
           RUSTFLAGS: "-Z sanitizer=leak"

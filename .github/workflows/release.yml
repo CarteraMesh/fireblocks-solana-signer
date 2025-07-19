@@ -43,7 +43,9 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-
+      - name: gpg
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: Cache Cargo registry and binaries
         uses: actions/cache@v4
         with:

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (do not actually publish)'
+        description: "Dry run (do not actually publish)"
         required: false
         type: boolean
         default: false
@@ -28,7 +28,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,7 +50,9 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-
+      - name: gpg
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
@@ -74,11 +76,11 @@ jobs:
           # Get current version from Cargo.toml
           CURRENT_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          
+
           # Get git short SHA
           GIT_SHORT_SHA=$(git rev-parse --short HEAD)
           echo "git_sha=$GIT_SHORT_SHA" >> $GITHUB_OUTPUT
-          
+
           # Parse version components (strip any existing RC/SHA suffixes)
           if [[ "$CURRENT_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
             major=${BASH_REMATCH[1]}
@@ -89,14 +91,14 @@ jobs:
             echo "❌ Unable to parse version: $CURRENT_VERSION"
             exit 1
           fi
-          
+
           # Create new RC version with format: major.minor.patch-rc-$GIT_SHORT_SHA
           NEW_VERSION="$major.$minor.$patch-rc-$GIT_SHORT_SHA"
-           
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "📦 Current version: $CURRENT_VERSION"
           echo "🔗 Git SHA: $GIT_SHORT_SHA"
-          echo "🚀 New RC version: $NEW_VERSION" 
+          echo "🚀 New RC version: $NEW_VERSION"
 
       - name: Run basic checks
         run: |
@@ -130,34 +132,34 @@ jobs:
           name: Release Candidate v${{ steps.version.outputs.new_version }}
           body: |
             ## 🧪 Release Candidate v${{ steps.version.outputs.new_version }}
-            
-            **Version bump:** RC from v${{ steps.version.outputs.current_version }})  
-            **Published from branch:** `${{ steps.branch.outputs.name }}`  
+
+            **Version bump:** RC from v${{ steps.version.outputs.current_version }})
+            **Published from branch:** `${{ steps.branch.outputs.name }}`
             **Git commit:** `${{ steps.version.outputs.git_sha }}`
-            
+
             ⚠️ **This is a release candidate.** It may contain bugs and is not recommended for production use.
-            
+
             ### Testing this RC
-            
+
             ```bash
             cargo add fireblocks-solana-signer@${{ steps.version.outputs.new_version }}
             ```
-            
+
             Or add to your `Cargo.toml`:
-            
+
             ```toml
             [dependencies]
             fireblocks-solana-signer = "${{ steps.version.outputs.new_version }}"
             ```
-            
+
             ### Important Notes
-            
+
             ⚠️ **This signer automatically broadcasts transactions to the Solana network.** When you call any signing method, Fireblocks will sign and broadcast the transaction automatically. Do not broadcast the transaction yourself after signing.
-            
+
             ### Feedback
-            
+
             Please test this RC and report any issues before the stable release.
-            
+
             See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
           draft: false
           prerelease: true
