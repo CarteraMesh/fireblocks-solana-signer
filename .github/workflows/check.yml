@@ -33,7 +33,7 @@ concurrency:
 name: check
 jobs:
   fmt:
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: nightly fmt
     steps:
       - uses: actions/checkout@v4
@@ -45,9 +45,9 @@ jobs:
           components: rustfmt
       - name: cargo fmt --check
         run: |
-            cargo +nightly fmt --check --all
+          cargo +nightly fmt --check --all
   clippy:
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: ${{ matrix.toolchain }} / clippy / ${{ matrix.features }}
     permissions:
       contents: read
@@ -59,6 +59,7 @@ jobs:
         toolchain: [stable, beta]
         features:
           - "default"
+          - "config"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,11 +72,11 @@ jobs:
       - name: ${{ matrix.toolchain }} cargo clippy (${{ matrix.features }})
         uses: giraffate/clippy-action@v1
         with:
-          reporter: 'github-pr-check'
+          reporter: "github-pr-check"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           clippy_flags: ${{ matrix.features != 'default' && format('--features {0}', matrix.features) || '' }}
   semver:
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: semver
     if: true
     steps:
@@ -85,7 +86,7 @@ jobs:
       - name: cargo-semver-checks
         uses: obi1kenobi/cargo-semver-checks-action@v2
         # with:
-          # feature-group: ${{ matrix.features != 'default' && matrix.features || 'default-features' }}
+        # feature-group: ${{ matrix.features != 'default' && matrix.features || 'default-features' }}
   doc:
     # run docs generation on nightly rather than stable. This enables features like
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
@@ -106,7 +107,7 @@ jobs:
   hack:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: ubuntu / stable / features
     steps:
       - uses: actions/checkout@v4
@@ -119,10 +120,12 @@ jobs:
       # intentionally no target specifier; see https://github.com/jonhoo/rust-ci-conf/pull/4
       # --feature-powerset runs for every combination of features
       - name: cargo hack
-        run: cargo hack --feature-powerset check
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
+          cargo hack --feature-powerset check
 
   udeps:
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: udeps
     steps:
       - uses: actions/checkout@v4
@@ -138,4 +141,3 @@ jobs:
         uses: taiki-e/install-action@cargo-udeps
       - name: cargo udeps
         run: cargo udeps
-

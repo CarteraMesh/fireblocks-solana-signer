@@ -9,29 +9,33 @@ repository = "https://github.com/CarteraMesh/fireblocks-solana-signer"
 documentation = "https://docs.rs/fireblocks-solana-signer"
 homepage = "https://github.com/CarteraMesh/fireblocks-solana-signer"
 keywords = ["solana", "fireblocks", "signer", "blockchain", "crypto"]
-categories = ["cryptography::cryptocurrencies" , "api-bindings"]
+categories = ["cryptography::cryptocurrencies", "api-bindings"]
 readme = "README.md"
 
 [features]
 default = []
 rustls-tls = ["fireblocks-signer-transport/rustls-tls"]
+config = ["fireblocks-config"]
 
 [dependencies]
 base64 = { version = "0.22" }
 bincode = "1"
 ed25519-dalek = "=1.0.1"
-fireblocks-signer-transport = {  version = "0.1" } 
+fireblocks-config = { version = "0.1", optional = true, features = [
+    "xdg",
+    "gpg",
+] }
+fireblocks-signer-transport = { version = "0.1" }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = { version = "1" }
 sha2 = { version = "0.10" }
-solana-pubkey =  { version = ">=2.1", features = ["serde"]}
-solana-signer = { version = ">=2.1"} 
-solana-signature =  { version = ">=2.1"} 
-solana-transaction =   { version = ">=2.1" , features = ["bincode"]}
-solana-message = { version = ">=2.1"}
+solana-pubkey = { version = ">=2.1", features = ["serde"] }
+solana-signer = { version = ">=2.1" }
+solana-signature = { version = ">=2.1" }
+solana-transaction = { version = ">=2.1", features = ["bincode"] }
+solana-message = { version = ">=2.1" }
 solana-instruction = { version = ">=2.1" }
 solana-hash = { version = ">=2.1" }
-# solana-sdk = { version = ">=2.1", default-features = false }
 solana-keypair = { version = "2" }
 rand = { version = "0.9" }
 thiserror = "2"
@@ -41,7 +45,7 @@ bon = "3.6.4"
 
 [dev-dependencies]
 anyhow = "1"
-dotenvy= "0.15"
+dotenvy = "0.15"
 spl-memo = { version = "6" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
@@ -50,4 +54,4 @@ solana-account-decoder = { version = ">=2.1" }
 tokio = { version = "1", features = ["full"] }
 actix-web = "4"
 solana-rpc-client = { version = "2", default-features = false }
-solana-rpc-client-api =  { version = "2"}
+solana-rpc-client-api = { version = "2" }

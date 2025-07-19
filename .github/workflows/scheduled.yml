@@ -23,7 +23,7 @@ name: rolling
 jobs:
   # https://twitter.com/mycoliza/status/1571295690063753218
   nightly:
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: ubuntu / nightly
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
     # of this crate will generally use the latest available crates. This is subject to the standard
     # Cargo semver rules (i.e cargo does not update to a new major version unless explicitly told
     # to).
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     name: ubuntu / beta / updated
     # There's no point running this if no Cargo.lock was checked in in the first place, since we'd
     # just redo what happened in the regular test job. Unfortunately, hashFiles only works in if on

@@ -112,6 +112,104 @@ See [example](./examples/memo.rs)
 | FIREBLOCKS_POLL_TIMEOUT  | in seconds, total time to check status of transaction |
 | FIREBLOCKS_POLL_INTERVAL | in seconds                                            |
 
+## Configuration Files (Optional)
+
+As an alternative to environment variables, you can use configuration files with the `config` feature. This provides a more structured approach to managing multiple Fireblocks environments and credentials.
+
+### Enabling the Config Feature
+
+Add the `config` feature to your `Cargo.toml`:
+
+```toml
+[dependencies]
+fireblocks-solana-signer = { version = "1", features = ["config"] }
+```
+
+### Configuration File Setup
+
+The config feature uses the [`fireblocks-config`](https://docs.rs/fireblocks-config/latest/fireblocks_config/) crate for configuration management. Configuration files are stored in the `~/.config/fireblocks/` directory using the `microxdg` crate.
+
+**File Structure:**
+- **Default configuration**: `~/.config/fireblocks/default.toml` (always loaded)
+- **Profile configurations**: `~/.config/fireblocks/{profile}.toml` (override default settings)
+
+**Example `~/.config/fireblocks/default.toml`:**
+```toml
+api_key = "your-sandbox-api-key-uuid"
+secret_path = "/path/to/your/sandbox-private-key.pem"
+url = "https://sandbox-api.fireblocks.io"
+mainnet = false
+
+[signer]
+vault = "your-sandbox-vault-id"
+poll_timeout = 30
+poll_interval = 2
+```
+
+**Example `~/.config/fireblocks/production.toml`:**
+```toml
+api_key = "your-production-api-key"
+secret_path = "/path/to/production-key.pem"
+url = "https://api.fireblocks.io"
+mainnet = true
+
+[signer]
+vault = "your-production-vault-id"
+poll_timeout = 60
+poll_interval = 3
+```
+
+### Using Configuration Files
+
+```rust,no_run
+use fireblocks_solana_signer::FireblocksSigner;
+
+fn main() -> anyhow::Result<()> {
+    // Use default configuration profile
+    let signer = FireblocksSigner::try_from_config(
+        &[],
+        |tx_response| println!("Transaction status: {}", tx_response)
+    )?;
+    
+    // Use specific configuration profiles
+    let signer = FireblocksSigner::try_from_config(
+        &["mainnet"],
+        |tx_response| eprintln!("Mainnet TX: {}", tx_response)
+    )?;
+    
+    // Use multiple profiles (later profiles override earlier ones)
+    let signer = FireblocksSigner::try_from_config(
+        &["default", "production"],
+        |tx_response| println!("TX Update: {}", tx_response)
+    )?;
+    
+    // Your transaction code here...
+    Ok(())
+}
+```
+
+**How Profile Loading Works:**
+- Empty slice `&[]`: Loads only `~/.config/fireblocks/default.toml`
+- Single profile `&["production"]`: Loads `default.toml` first, then `production.toml` overrides any matching settings
+- Multiple profiles `&["staging", "production"]`: Loads `default.toml`, then `staging.toml`, then `production.toml` (each overriding previous values)
+
+### Benefits of Configuration Files
+
+- **Multiple Environments**: Easily switch between sandbox, testnet, and mainnet
+- **Profile Management**: Organize different configurations by environment or use case
+- **Version Control**: Configuration files can be committed (without secrets) for team sharing
+- **Validation**: Built-in validation and error handling for configuration values
+- **Flexibility**: Override specific settings per profile while inheriting defaults
+
+### Configuration vs Environment Variables
+
+| Method | Best For | Pros | Cons |
+|--------|----------|------|------|
+| Environment Variables | Simple setups, CI/CD | Easy to set, widely supported | Hard to manage multiple environments |
+| Configuration Files | Complex setups, multiple environments | Organized, version-controllable, flexible | Requires additional feature, more setup |
+
+For detailed configuration options and file locations, see the [`fireblocks-config` documentation](https://docs.rs/fireblocks-config/latest/fireblocks_config/).
+
 ## Development
 
 ### Prerequisites
