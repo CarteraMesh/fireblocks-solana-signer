@@ -20,20 +20,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RPC_URL: ${{ secrets.RPC_URL }}
-  FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
-  FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
-  RUST_LOG: "fireblocks_solana_signer=debug"
-  FIREBLOCKS_ENDPOINT: https://sandbox-api.fireblocks.io
-  FIREBLOCKS_POLL_TIMEOUT: "15"
-  FIREBLOCKS_POLL_INTERVAL: "3"
-  FIREBLOCKS_DEVNET: "true"
-  FIREBLOCKS_VAULT: "0"
 
 jobs:
   release:
     name: Release
-    runs-on: ubicloud-standard-2
+    runs-on: ${{ vars.RUNNER }}
     permissions:
       contents: write
       pull-requests: write
@@ -53,17 +44,27 @@ jobs:
         with:
           components: rustfmt
 
-      - name: Cache Cargo registry
+      - name: Cache Cargo registry and binaries
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/bin
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
 
       - name: Install cargo-release
-        run: cargo install cargo-release
+        run: |
+          if ! command -v cargo-release &> /dev/null; then
+            echo "Installing cargo-release..."
+            cargo install cargo-release
+          else
+            echo "cargo-release already installed, skipping..."
+          fi
 
       - name: Configure Git
         run: |
@@ -128,7 +129,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.new_version }}
+          tag_name: v${{ steps.version.outputs.new_version }}
           name: Release v${{ steps.version.outputs.new_version }}
           body: |
             ## Changes in v${{ steps.version.outputs.new_version }}

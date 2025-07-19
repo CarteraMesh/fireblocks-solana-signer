@@ -58,4 +58,8 @@ pub enum Error {
 
     #[error("Tokio join error: {0}")]
     JoinError(String),
+
+    #[cfg(feature = "config")]
+    #[error(transparent)]
+    ConfigError(#[from] fireblocks_config::Error),
 }

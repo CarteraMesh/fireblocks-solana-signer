@@ -31,6 +31,8 @@
 //! # }
 //! ```
 
+#[cfg(feature = "config")]
+mod config;
 mod keypair;
 mod poll;
 use {
