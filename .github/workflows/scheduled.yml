@@ -14,8 +14,9 @@ env:
   FIREBLOCKS_DEVNET: "true"
   FIREBLOCKS_VAULT: "0"
 on:
+  workflow_dispatch:
   schedule:
-    - cron:  '7 7 1,7,20 * *'
+    - cron: "7 7 1,7,20 * *"
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -29,6 +30,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: gpg
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: cargo generate-lockfile
@@ -52,6 +56,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: gpg
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
       - name: Install beta
         if: hashFiles('Cargo.lock') != ''
         uses: dtolnay/rust-toolchain@beta
