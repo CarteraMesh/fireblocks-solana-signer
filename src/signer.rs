@@ -33,8 +33,14 @@
 
 #[cfg(feature = "config")]
 mod config;
+
+#[cfg(not(feature = "agave"))]
 mod keypair;
 mod poll;
+
+#[cfg(not(feature = "agave"))]
+pub use keypair::keypair_from_seed;
+pub use poll::*;
 use {
     crate::{
         Asset,
@@ -55,7 +61,6 @@ use {
     solana_transaction::versioned::VersionedTransaction,
     std::{fmt::Debug, str::FromStr, sync::Arc, time::Duration},
 };
-pub use {keypair::keypair_from_seed, poll::*};
 
 /// A Solana signer implementation using Fireblocks as the backend signing
 /// service.

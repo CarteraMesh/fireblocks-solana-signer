@@ -1,3 +1,5 @@
+#![cfg(not(feature = "agave"))]
+
 mod utils;
 use {
     fireblocks_solana_signer::*,

@@ -13,32 +13,33 @@ categories = ["cryptography::cryptocurrencies", "api-bindings"]
 readme = "README.md"
 
 [features]
-default = []
+default = ["agave"]
 rustls-tls = ["fireblocks-signer-transport/rustls-tls"]
 config = ["fireblocks-config"]
+agave = []
 
 [dependencies]
-base64 = { version = "0.22" }
-bincode = "1"
-ed25519-dalek = "=1.0.1"
+base64 = { workspace = true }
+bincode = { workspace = true }
+ed25519-dalek = { workspace = true }
 fireblocks-config = { version = "0.1", optional = true, features = [
     "xdg",
     "gpg",
 ] }
 fireblocks-signer-transport = { version = "0.1" }
-serde = { version = "^1.0", features = ["derive"] }
-serde_json = { version = "1" }
-sha2 = { version = "0.10" }
-solana-pubkey = { version = ">=2.1", features = ["serde"] }
-solana-signer = { version = ">=2.1" }
-solana-signature = { version = ">=2.1" }
-solana-transaction = { version = ">=2.1", features = ["bincode"] }
-solana-message = { version = ">=2.1" }
-solana-instruction = { version = ">=2.1" }
-solana-hash = { version = ">=2.1" }
-solana-keypair = { version = "2" }
-rand = { version = "0.9" }
-thiserror = "2"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+solana-pubkey = { workspace = true, features = ["serde"] }
+solana-signer = { workspace = true }
+solana-signature = { workspace = true }
+solana-transaction = { workspace = true, features = ["bincode"] }
+solana-message = { workspace = true }
+solana-instruction = { workspace = true }
+solana-hash = { workspace = true }
+solana-keypair = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }
 tracing = { version = "0.1" }
 bon = "3.6.4"
 
@@ -46,12 +47,25 @@ bon = "3.6.4"
 [dev-dependencies]
 anyhow = "1"
 dotenvy = "0.15"
-spl-memo = { version = "6" }
+spl-memo = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
-solana-sdk = { version = "2", default-features = false, features = ["full"] }
-solana-account-decoder = { version = ">=2.1" }
 tokio = { version = "1", features = ["full"] }
 actix-web = "4"
-solana-rpc-client = { version = "2", default-features = false }
-solana-rpc-client-api = { version = "2" }
+solana-rpc-client = { workspace = true, default-features = false }
+solana-rpc-client-api = { workspace = true }
+
+[[example]]
+name = "actix_test"
+path = "examples/actix_test.rs"
+required-features = ["!agave"] 
+
+[[example]]
+name = "memo"
+path = "examples/memo.rs"
+required-features = ["!agave"] 
+
+[[example]]
+name = "lookup"
+path = "examples/lookup.rs"
+required-features = ["!agave"] 

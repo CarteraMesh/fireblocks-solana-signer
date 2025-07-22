@@ -1,3 +1,5 @@
+#![cfg(not(feature = "agave"))]
+
 use {
     fireblocks_solana_signer::*,
     solana_account_decoder::parse_address_lookup_table::{
