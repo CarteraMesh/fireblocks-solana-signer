@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
         type: choice
         options:
@@ -13,7 +13,7 @@ on:
           - major
         default: patch
       dry_run:
-        description: 'Dry run (do not actually publish)'
+        description: "Dry run (do not actually publish)"
         required: false
         type: boolean
         default: false
@@ -28,7 +28,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -54,9 +54,9 @@ jobs:
             ~/.cargo/git
             ~/.cargo/bin
             target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-releaser
           restore-keys: |
-            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-releaser-
             ${{ runner.os }}-cargo-
 
       - name: Install cargo-release
@@ -79,10 +79,10 @@ jobs:
           # Get current version from Cargo.toml
           CURRENT_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          
+
           # Parse version components
           IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-          
+
           # Calculate new version based on bump type
           case "${{ inputs.version_bump }}" in
             "major")
@@ -95,7 +95,7 @@ jobs:
               NEW_VERSION="$major.$minor.$((patch + 1))"
               ;;
           esac
-          
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "📦 Current version: $CURRENT_VERSION"
           echo "🚀 New version: $NEW_VERSION (${{ inputs.version_bump }} bump)"
@@ -135,26 +135,26 @@ jobs:
           name: Release v${{ steps.version.outputs.new_version }}
           body: |
             ## Changes in v${{ steps.version.outputs.new_version }}
-            
+
             **Version bump:** ${{ inputs.version_bump }} (from v${{ steps.version.outputs.current_version }})
-            
+
             See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
-            
+
             ## Installation
-            
+
             ```bash
             cargo add fireblocks-solana-signer@${{ steps.version.outputs.new_version }}
             ```
-            
+
             Or add to your `Cargo.toml`:
-            
+
             ```toml
             [dependencies]
             fireblocks-solana-signer = "${{ steps.version.outputs.new_version }}"
             ```
-            
+
             ## Important Notes
-            
+
             ⚠️ **This signer automatically broadcasts transactions to the Solana network.** When you call any signing method, Fireblocks will sign and broadcast the transaction automatically. Do not broadcast the transaction yourself after signing.
           draft: false
           prerelease: false
