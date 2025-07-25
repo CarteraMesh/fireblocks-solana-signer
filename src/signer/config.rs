@@ -81,6 +81,7 @@ impl FireblocksSigner {
     {
         let cfg = FireblocksConfig::init_with_profiles(profiles)?;
         let asset = if cfg.mainnet { SOL } else { SOL_TEST };
+        let pk: Option<String> = cfg.get_extra("solana_pub_key").ok();
         let builder = ClientBuilder::new(&cfg.api_key, &cfg.get_key()?)
             .with_url(&cfg.url)
             .with_timeout(Duration::from_secs(10))
@@ -89,7 +90,7 @@ impl FireblocksSigner {
             builder,
             cfg.signer.vault.clone(),
             asset.clone(),
-            None,
+            pk,
         )?;
 
         Ok(FireblocksSigner::builder()
@@ -105,5 +106,19 @@ impl FireblocksSigner {
                     .build(),
             )
             .build())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_config() -> anyhow::Result<()> {
+        if std::env::var("CI").ok().is_none() {
+            eprintln!("skipping config test, not in CI");
+        }
+        FireblocksSigner::try_from_config(&["default"], |tx| tracing::info!("{tx}"))?;
+        FireblocksSigner::try_from_config(&["sandbox"], |tx| tracing::info!("{tx}"))?;
+        Ok(())
     }
 }
