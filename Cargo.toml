@@ -51,6 +51,5 @@ spl-memo = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 lazy_static = "1.4.0"
 tokio = { version = "1", features = ["full"] }
-actix-web = "4"
-solana-rpc-client = { workspace = true, default-features = false }
-solana-rpc-client-api = { workspace = true }
+solana-rpc-client = { version = "2", default-features = false }
+solana-rpc-client-api = { version = "2" }
