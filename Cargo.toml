@@ -54,18 +54,3 @@ tokio = { version = "1", features = ["full"] }
 actix-web = "4"
 solana-rpc-client = { workspace = true, default-features = false }
 solana-rpc-client-api = { workspace = true }
-
-[[example]]
-name = "actix_test"
-path = "examples/actix_test.rs"
-required-features = ["!agave"] 
-
-[[example]]
-name = "memo"
-path = "examples/memo.rs"
-required-features = ["!agave"] 
-
-[[example]]
-name = "lookup"
-path = "examples/lookup.rs"
-required-features = ["!agave"] 
