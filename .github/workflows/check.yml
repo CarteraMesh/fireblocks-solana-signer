@@ -48,7 +48,7 @@ jobs:
           cargo +nightly fmt --check --all
   clippy:
     runs-on: ${{ vars.RUNNER }}
-    name: ${{ matrix.toolchain }} / clippy / ${{ matrix.features }}
+    name: ${{ matrix.toolchain }} / clippy
     permissions:
       contents: read
       checks: write
@@ -60,12 +60,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          workspaces: |
+            . -> target
+          # Specifies what to use as the backend providing cache
+          # Can be set to "github", "buildjet", or "warpbuild"
+          # default: "github"
+          cache-provider: "git"
       - name: Install ${{ matrix.toolchain }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
-      - name: ${{ matrix.toolchain }} cargo clippy (${{ matrix.features }})
+      - name: ${{ matrix.toolchain }} cargo clippy
         uses: giraffate/clippy-action@v1
         with:
           reporter: "github-pr-check"
@@ -77,6 +88,17 @@ jobs:
     if: true
     steps:
       - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          workspaces: |
+            . -> target
+          # Specifies what to use as the backend providing cache
+          # Can be set to "github", "buildjet", or "warpbuild"
+          # default: "github"
+          cache-provider: "git"
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
       - name: gpg
@@ -97,6 +119,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          workspaces: |
+            . -> target
+          # Specifies what to use as the backend providing cache
+          # Can be set to "github", "buildjet", or "warpbuild"
+          # default: "github"
+          cache-provider: "git"
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-docs-rs
@@ -130,6 +163,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          workspaces: |
+            . -> target
+          # Specifies what to use as the backend providing cache
+          # Can be set to "github", "buildjet", or "warpbuild"
+          # default: "github"
+          cache-provider: "git"
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly
       - name: Cache Rust dependencies
