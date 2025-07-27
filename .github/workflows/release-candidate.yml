@@ -35,7 +35,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
+      - uses: ubicloud/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          workspaces: |
+            . -> target
       - name: Get current branch
         id: branch
         run: |
@@ -45,23 +50,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Rust nightly for formatting
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
       - name: gpg
         run: |
           sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-
       - name: Install cargo-release
         run: cargo install cargo-release
 
