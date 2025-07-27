@@ -79,9 +79,6 @@ impl FireblocksSigner {
     where
         S: AsRef<str>,
     {
-        #[cfg(feature = "log")]
-        crate::ensure_log_tracer_init();
-
         let cfg = FireblocksConfig::init_with_profiles(profiles)?;
         let asset = if cfg.mainnet { SOL } else { SOL_TEST };
         let pk: Option<String> = cfg.get_extra("solana_pub_key").ok();
@@ -120,8 +117,8 @@ mod test {
         if std::env::var("CI").ok().is_none() {
             eprintln!("skipping config test, not in CI");
         }
-        FireblocksSigner::try_from_config(&["default"], |tx| tracing::info!("{tx}"))?;
-        FireblocksSigner::try_from_config(&["sandbox"], |tx| tracing::info!("{tx}"))?;
+        FireblocksSigner::try_from_config(&["default"], |tx| log::info!("{tx}"))?;
+        FireblocksSigner::try_from_config(&["sandbox"], |tx| log::info!("{tx}"))?;
         Ok(())
     }
 }

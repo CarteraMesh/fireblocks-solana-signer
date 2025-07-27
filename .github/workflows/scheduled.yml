@@ -34,13 +34,11 @@ jobs:
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
-          cache-workspace-crates: "true"
           workspaces: |
             . -> target
           # Specifies what to use as the backend providing cache
           # Can be set to "github", "buildjet", or "warpbuild"
           # default: "github"
-          cache-bin: "true"
       - name: gpg
         run: |
           sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
