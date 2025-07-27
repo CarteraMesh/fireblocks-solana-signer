@@ -163,7 +163,7 @@ impl FireblocksSigner {
         let transaction_base64 =
             BASE64_STANDARD.encode(bincode::serialize(&versioned_transaction)?);
 
-        tracing::debug!("tx base64 {transaction_base64}");
+        log::debug!("tx base64 {transaction_base64}");
         let resp = client.program_call(&self.asset, &self.vault_id, transaction_base64)?;
         let (result, sig) = client.poll(
             &resp.id,
@@ -212,7 +212,7 @@ impl FireblocksSigner {
             // Broadcasting means the transaction is being sent to the network but not yet confirmed
             // This is a transitional state that polling should have waited through
             TransactionStatus::Broadcasting => {
-                tracing::warn!(
+                log::warn!(
                     "txid {} is in Broadcasting state - transaction may not be fully confirmed yet",
                     result.id
                 );
@@ -222,7 +222,7 @@ impl FireblocksSigner {
 
             // These are the success states where we expect a signature
             TransactionStatus::Completed | TransactionStatus::Confirming => {
-                tracing::debug!(
+                log::debug!(
                     "Transaction {} completed with status {}",
                     result.id,
                     result.status
@@ -413,7 +413,7 @@ impl Signer for FireblocksSigner {
                 let message_vec = message.to_vec();
                 let signer = self.clone();
 
-                tracing::debug!("spawning sign_transaction call with std::thread::spawn");
+                log::debug!("spawning sign_transaction call with std::thread::spawn");
 
                 // Use std::thread::spawn for universal compatibility across all contexts
                 let (tx, rx) = std::sync::mpsc::channel();
@@ -425,7 +425,7 @@ impl Signer for FireblocksSigner {
                     let _ = tx.send(final_result);
                 });
 
-                tracing::debug!("waiting for response...");
+                log::debug!("waiting for response...");
                 // Wait for the result synchronously (could take 2+ minutes)
                 rx.recv().unwrap_or_else(|_| {
                     Err(solana_signer::SignerError::Custom(

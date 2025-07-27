@@ -44,12 +44,11 @@ impl Default for PollConfig {
     /// Default values:
     /// - `timeout`: 15 seconds
     /// - `interval`: 5 seconds
-    /// - `callback`: Logs transaction status using `tracing::info!`
     fn default() -> Self {
         Self {
             timeout: Duration::from_secs(15),
             interval: Duration::from_secs(5),
-            callback: |t| tracing::info!("{}", t),
+            callback: |t| log::info!("{t}"),
         }
     }
 }

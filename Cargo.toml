@@ -1,6 +1,6 @@
 [package]
 name = "fireblocks-solana-signer"
-version = "1.0.12"
+version = "1.0.14"
 edition = "2024"
 description = "Implementation of a Solana Signer using Fireblocks as backend signer"
 license = "MIT"
@@ -15,18 +15,18 @@ readme = "README.md"
 [features]
 default = ["agave"]
 rustls-tls = ["fireblocks-signer-transport/rustls-tls"]
-config = ["fireblocks-config"]
+config = ["fireblocks-config/xdg"]
+gpg = ["config", "fireblocks-config/gpg"]
 agave = []
 
 [dependencies]
 base64 = { workspace = true }
 bincode = { workspace = true }
+bon = "3.6.4"
 ed25519-dalek = { workspace = true }
-fireblocks-config = { version = "0.1", optional = true, features = [
-    "xdg",
-    "gpg",
-] }
+fireblocks-config = { version = "0.1", optional = true }
 fireblocks-signer-transport = { version = "0.1" }
+log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
@@ -41,7 +41,6 @@ solana-keypair = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
 tracing = { version = "0.1" }
-bon = "3.6.4"
 
 
 [dev-dependencies]

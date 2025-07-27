@@ -100,7 +100,7 @@ pub fn build_client_safe(builder: ClientBuilder) -> Result<Client> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if tx.send(builder.build()).is_err() {
-            tracing::error!("Failed to send result back to main thread");
+            log::error!("Failed to send result back to main thread");
         }
     });
     Ok(rx.recv()??)
@@ -195,10 +195,10 @@ pub fn build_client_and_address_blocking_safe(
                 };
                 // Don't ignore send errors
                 if tx.send(result).is_err() {
-                    tracing::error!("Failed to send result back to main thread");
+                    log::error!("Failed to send result back to main thread");
                 }
             });
-            tracing::debug!("waiting for client builder response...");
+            log::debug!("waiting for client builder response...");
 
             // Add timeout to prevent infinite blocking
             match rx.recv_timeout(std::time::Duration::from_secs(
@@ -206,7 +206,7 @@ pub fn build_client_and_address_blocking_safe(
             )) {
                 Ok(result) => Ok(result?),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    tracing::error!("Client initialization timed out");
+                    log::error!("Client initialization timed out");
                     Err(Error::Timeout(
                         "Client initialization timed out".to_string(),
                     ))
@@ -214,7 +214,7 @@ pub fn build_client_and_address_blocking_safe(
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                     // Check if thread panicked
                     if let Err(panic_err) = handle.join() {
-                        tracing::error!("Client initialization thread panicked: {:?}", panic_err);
+                        log::error!("Client initialization thread panicked: {panic_err:?}");
                         Err(Error::ThreadPanic(
                             "Client initialization thread panicked".to_string(),
                         ))
