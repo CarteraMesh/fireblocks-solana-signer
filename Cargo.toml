@@ -21,9 +21,11 @@ gpg = ["config", "fireblocks-config/gpg"]
 [dependencies]
 base64 = { version = "0.22" }
 bincode = "1"
+bon = "3.6.4"
 ed25519-dalek = "=1.0.1"
 fireblocks-config = { version = "0.1", optional = true }
 fireblocks-signer-transport = { version = "0.1" }
+log = { version = ">=0.3" }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = { version = "1" }
 sha2 = { version = "0.10" }
@@ -38,7 +40,6 @@ solana-keypair = { version = "2" }
 rand = { version = "0.9" }
 thiserror = "2"
 tracing = { version = "0.1" }
-bon = "3.6.4"
 
 
 [dev-dependencies]
