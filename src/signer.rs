@@ -313,6 +313,9 @@ impl FireblocksSigner {
     /// # }
     /// ```
     pub fn try_from_env(f: Option<fn(&crate::TransactionResponse)>) -> Result<Self> {
+        #[cfg(feature = "log")]
+        crate::ensure_log_tracer_init();
+
         let vault = std::env::var(EnvVar::Vault).map_err(|e| Error::from((EnvVar::Vault, e)))?;
         let asset =
             if std::env::var(EnvVar::Testnet).is_ok() || std::env::var(EnvVar::Devnet).is_ok() {

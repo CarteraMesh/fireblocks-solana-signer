@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: Swatinem/rust-cache@v2
+      - uses: ubicloud/rust-cache@v2
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
@@ -41,7 +41,6 @@ jobs:
           # Specifies what to use as the backend providing cache
           # Can be set to "github", "buildjet", or "warpbuild"
           # default: "github"
-          cache-provider: "github"
           cache-bin: "true"
       - name: Install nightly
         uses: dtolnay/rust-toolchain@nightly

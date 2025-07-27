@@ -47,7 +47,7 @@ jobs:
           submodules: true
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: ubicloud/rust-cache@v2
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
@@ -57,7 +57,6 @@ jobs:
           # Specifies what to use as the backend providing cache
           # Can be set to "github", "buildjet", or "warpbuild"
           # default: "github"
-          cache-provider: "github"
           cache-bin: "true"
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
@@ -74,7 +73,7 @@ jobs:
           - "gpg"
     steps:
       - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
+      - uses: ubicloud/rust-cache@v2
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
@@ -84,7 +83,6 @@ jobs:
           # Specifies what to use as the backend providing cache
           # Can be set to "github", "buildjet", or "warpbuild"
           # default: "github"
-          cache-provider: "github"
           cache-bin: "true"
       - uses: CarteraMesh/fireblocks-config-action@v1
         with:

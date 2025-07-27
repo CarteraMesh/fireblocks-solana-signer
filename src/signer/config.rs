@@ -79,6 +79,9 @@ impl FireblocksSigner {
     where
         S: AsRef<str>,
     {
+        #[cfg(feature = "log")]
+        crate::ensure_log_tracer_init();
+
         let cfg = FireblocksConfig::init_with_profiles(profiles)?;
         let asset = if cfg.mainnet { SOL } else { SOL_TEST };
         let pk: Option<String> = cfg.get_extra("solana_pub_key").ok();

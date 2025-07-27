@@ -39,6 +39,16 @@ pub use {
     std::str::FromStr,
 };
 
+#[cfg(feature = "log")]
+static LOG_TRACER_INIT: std::sync::Once = std::sync::Once::new();
+
+#[cfg(feature = "log")]
+fn ensure_log_tracer_init() {
+    LOG_TRACER_INIT.call_once(|| {
+        tracing_log::LogTracer::init().ok(); // Use .ok() to ignore if already initialized
+    });
+}
+
 /// Environment variables used by the FireblocksSigner.
 #[derive(Debug, Clone, Copy)]
 pub enum EnvVar {

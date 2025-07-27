@@ -17,6 +17,7 @@ default = []
 rustls-tls = ["fireblocks-signer-transport/rustls-tls"]
 config = ["fireblocks-config/xdg"]
 gpg = ["config", "fireblocks-config/gpg"]
+log = ["tracing-log"]
 
 [dependencies]
 base64 = { version = "0.22" }
@@ -38,6 +39,7 @@ solana-keypair = { version = "2" }
 rand = { version = "0.9" }
 thiserror = "2"
 tracing = { version = "0.1" }
+tracing-log = { version = "0.2", optional = true }
 bon = "3.6.4"
 
 
