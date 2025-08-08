@@ -36,7 +36,7 @@ solana-transaction = { version = ">=2.1", features = ["bincode"] }
 solana-message = { version = ">=2.1" }
 solana-instruction = { version = ">=2.1" }
 solana-hash = { version = ">=2.1" }
-solana-keypair = { version = "2" }
+solana-keypair = { version = "3" }
 rand = { version = "0.9" }
 thiserror = "2"
 tracing = { version = "0.1" }
