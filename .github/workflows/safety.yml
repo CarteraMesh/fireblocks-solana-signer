@@ -28,7 +28,7 @@ jobs:
   sanitizers:
     runs-on: ${{ vars.RUNNER }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - uses: ubicloud/rust-cache@v2
@@ -79,7 +79,7 @@ jobs:
     runs-on: ${{ vars.RUNNER }}
     if: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - run: |
