@@ -1,6 +1,6 @@
 [package]
 name = "fireblocks-solana-signer"
-version = "1.0.15"
+version = "2.0.0"
 edition = "2024"
 description = "Implementation of a Solana Signer using Fireblocks as backend signer"
 license = "MIT"
@@ -53,3 +53,5 @@ solana-account-decoder = { version = "2" }
 tokio = { version = "1", features = ["full"] }
 solana-rpc-client = { version = "2", default-features = false }
 solana-rpc-client-api = { version = "2" }
+solana-stake-interface = { version = "1", features = ["bincode"] }
+solana-native-token = { version = "2" }

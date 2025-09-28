@@ -24,6 +24,9 @@ pub enum Error {
     SignatureError(#[from] solana_signature::ParseSignatureError),
 
     #[error(transparent)]
+    SignerError(#[from] solana_signer::SignerError),
+
+    #[error(transparent)]
     FireblocksClientError(#[from] fireblocks_signer_transport::FireblocksClientError),
 
     #[error("{0}")]
