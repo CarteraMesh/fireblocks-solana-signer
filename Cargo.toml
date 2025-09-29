@@ -32,7 +32,7 @@ sha2 = { version = "0.10" }
 solana-pubkey = { version = "2", features = ["serde"] }
 solana-signer = { version = "2" }
 solana-signature = { version = "2" }
-solana-transaction = { version = "2", features = ["bincode"] }
+solana-transaction = { version = "3", features = ["bincode"] }
 solana-message = { version = "2" }
 solana-instruction = { version = "2" }
 solana-hash = { version = "2" }
