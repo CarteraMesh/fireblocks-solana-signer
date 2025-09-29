@@ -56,7 +56,6 @@ use {
     std::{fmt::Debug, str::FromStr, sync::Arc, time::Duration},
 };
 pub use {keypair::keypair_from_seed, poll::*};
-
 /// A Solana signer implementation using Fireblocks as the backend signing
 /// service.
 ///
@@ -85,7 +84,7 @@ pub use {keypair::keypair_from_seed, poll::*};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Default, bon::Builder)]
+#[derive(Default, bon::Builder)]
 pub struct FireblocksSigner {
     /// The Fireblocks vault ID containing the signing key.
     pub vault_id: String,
@@ -103,6 +102,8 @@ pub struct FireblocksSigner {
 
     /// The Fireblocks client for API communication.
     client: Option<Client>,
+
+    additional_signers: Vec<Box<dyn Signer>>,
 }
 
 impl Debug for FireblocksSigner {
@@ -116,124 +117,8 @@ impl Debug for FireblocksSigner {
 }
 
 impl FireblocksSigner {
-    /// Signs a transaction message using Fireblocks.
-    ///
-    /// This method handles the complete signing flow:
-    /// 1. Deserializes the message into a versioned transaction
-    /// 2. Encodes the transaction as base64
-    /// 3. Sends it to Fireblocks for signing
-    /// 4. Polls for completion
-    /// 5. Returns the signature
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The serialized transaction message to sign
-    ///
-    /// # Returns
-    ///
-    /// Returns a [`Result`] containing the [`Signature`] on success, or an
-    /// [`Error`] on failure.
-    ///
-    /// # Errors
-    ///
-    /// This method can fail if:
-    /// - The message cannot be deserialized
-    /// - The Fireblocks API call fails
-    /// - Polling times out
-    /// - No signature is returned from Fireblocks
-    ///
-    /// # Panics
-    ///
-    /// Panics if neither a keypair nor a Fireblocks client is configured.
-    /// This indicates a fundamental configuration error in the signer setup.
-    #[tracing::instrument(level = "debug", skip(message))]
-    fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
-        let client = self.client.as_ref().expect(
-            "FireblocksSigner must have either a keypair or a Fireblocks client configured",
-        );
-
-        let versioned_message: VersionedMessage = bincode::deserialize(message)
-            .map_err(|e| Error::InvalidMessage(format!("Failed to deserialize message: {e}")))?;
-        let versioned_transaction = VersionedTransaction::new_unsigned(versioned_message);
-        let transaction_base64 =
-            BASE64_STANDARD.encode(bincode::serialize(&versioned_transaction)?);
-
-        log::debug!("tx base64 {transaction_base64}");
-        let resp = client.program_call(&self.asset, &self.vault_id, transaction_base64)?;
-        let (result, sig) = client.poll(
-            &resp.id,
-            self.poll_config.timeout,
-            self.poll_config.interval,
-            self.poll_config.callback,
-        )?;
-        match &result.status {
-            // These statuses indicate the transaction is still pending and shouldn't have been
-            // returned by polling
-            TransactionStatus::Submitted
-            | TransactionStatus::Queued
-            | TransactionStatus::Pending3RdParty
-            | TransactionStatus::PendingSignature
-            | TransactionStatus::PendingAuthorization
-            | TransactionStatus::Pending3RdPartyManualApproval
-            | TransactionStatus::PendingEnrichment
-            | TransactionStatus::PendingAmlScreening => {
-                return Err(crate::Error::FireblocksNoSig(format!(
-                    "txid: {} is still pending with status {} (\"{}\"). This indicates a polling \
-                     timeout or configuration issue.",
-                    result.id,
-                    result.status,
-                    result.sub_status.unwrap_or_default(),
-                )));
-            }
-
-            // These statuses indicate permanent failure
-            TransactionStatus::Failed
-            | TransactionStatus::Blocked
-            | TransactionStatus::Rejected
-            | TransactionStatus::Cancelled
-            | TransactionStatus::Cancelling => {
-                return Err(crate::Error::FireblocksNoSig(format!(
-                    "txid: {} failed with status {} substatus: \"{}\" error: {}",
-                    result.id,
-                    result.status,
-                    result.sub_status.unwrap_or_default(),
-                    result
-                        .error_description
-                        .as_ref()
-                        .map_or("unknown error", |v| v)
-                )));
-            }
-
-            // Broadcasting means the transaction is being sent to the network but not yet confirmed
-            // This is a transitional state that polling should have waited through
-            TransactionStatus::Broadcasting => {
-                log::warn!(
-                    "txid {} is in Broadcasting state - transaction may not be fully confirmed yet",
-                    result.id
-                );
-                // Continue to check for signature, but this might indicate
-                // incomplete confirmation
-            }
-
-            // These are the success states where we expect a signature
-            TransactionStatus::Completed | TransactionStatus::Confirming => {
-                log::debug!(
-                    "Transaction {} completed with status {}",
-                    result.id,
-                    result.status
-                );
-            }
-        };
-        match sig {
-            None => Err(crate::Error::FireblocksNoSig(format!(
-                "No Signature available for txid {result} {}",
-                result
-                    .error_description
-                    .as_ref()
-                    .map_or("unknown error", |v| v)
-            ))),
-            Some(s) => Ok(Signature::from_str(&s)?),
-        }
+    pub fn additional_signers(&mut self, additional_signers: Vec<Box<dyn Signer>>) {
+        self.additional_signers = additional_signers;
     }
 
     /// Creates a new [`FireblocksSigner`] from environment variables.
@@ -361,6 +246,7 @@ impl FireblocksSigner {
             .asset(asset)
             .poll_config(poll)
             .pk(pk)
+            .additional_signers(Vec::with_capacity(0))
             .build())
     }
 }
@@ -405,16 +291,39 @@ impl Signer for FireblocksSigner {
         match &self.keypair {
             Some(kp) => kp.try_sign_message(message),
             None => {
-                let message_vec = message.to_vec();
-                let signer = self.clone();
-
+                let pc = self.poll_config.clone();
+                let asset = self.asset.clone();
+                let vault_id = self.vault_id.clone();
                 log::debug!("spawning sign_transaction call with std::thread::spawn");
+                let c = self
+                    .client
+                    .as_ref()
+                    .expect(
+                        "FireblocksSigner must have either a keypair or a Fireblocks client \
+                         configured",
+                    )
+                    .clone();
+                let versioned_message: VersionedMessage = bincode::deserialize(message)
+                    .map_err(|e| solana_signer::SignerError::Custom(e.to_string()))?;
+                let mut versioned_transaction =
+                    VersionedTransaction::new_unsigned(versioned_message);
+                if !self.additional_signers.is_empty() {
+                    log::debug!(
+                        "signing with additional {} signers",
+                        self.additional_signers.len()
+                    );
+                    versioned_transaction.try_sign(&self.additional_signers, None)?;
+                }
 
+                let transaction_base64 = BASE64_STANDARD.encode(
+                    bincode::serialize(&versioned_transaction)
+                        .map_err(|e| solana_signer::SignerError::Custom(e.to_string()))?,
+                );
                 // Use std::thread::spawn for universal compatibility across all contexts
                 let (tx, rx) = std::sync::mpsc::channel();
 
                 std::thread::spawn(move || {
-                    let result = signer.sign_transaction(&message_vec);
+                    let result = sign_transaction(c, pc, asset, &vault_id, transaction_base64);
                     let final_result =
                         result.map_err(|e| solana_signer::SignerError::Custom(format!("{e}")));
                     let _ = tx.send(final_result);
@@ -441,13 +350,107 @@ impl Signer for FireblocksSigner {
     }
 }
 
+#[tracing::instrument(level = "debug", skip(poll_config, tx))]
+fn sign_transaction(
+    client: Client,
+    poll_config: PollConfig,
+    asset: Asset,
+    vault_id: &str,
+    tx: String,
+) -> Result<Signature> {
+    log::debug!("tx base64 {tx}");
+    let resp = client.program_call(&asset, vault_id, tx)?;
+    let (result, sig) = client.poll(
+        &resp.id,
+        poll_config.timeout,
+        poll_config.interval,
+        poll_config.callback,
+    )?;
+    match &result.status {
+        // These statuses indicate the transaction is still pending and shouldn't have been
+        // returned by polling
+        TransactionStatus::Submitted
+        | TransactionStatus::Queued
+        | TransactionStatus::Pending3RdParty
+        | TransactionStatus::PendingSignature
+        | TransactionStatus::PendingAuthorization
+        | TransactionStatus::Pending3RdPartyManualApproval
+        | TransactionStatus::PendingEnrichment
+        | TransactionStatus::PendingAmlScreening => {
+            return Err(crate::Error::FireblocksNoSig(format!(
+                "txid: {} is still pending with status {} (\"{}\"). This indicates a polling \
+                 timeout or configuration issue.",
+                result.id,
+                result.status,
+                result.sub_status.unwrap_or_default(),
+            )));
+        }
+
+        // These statuses indicate permanent failure
+        TransactionStatus::Failed
+        | TransactionStatus::Blocked
+        | TransactionStatus::Rejected
+        | TransactionStatus::Cancelled
+        | TransactionStatus::Cancelling => {
+            return Err(crate::Error::FireblocksNoSig(format!(
+                "txid: {} failed with status {} substatus: \"{}\" error: {}",
+                result.id,
+                result.status,
+                result.sub_status.unwrap_or_default(),
+                result
+                    .error_description
+                    .as_ref()
+                    .map_or("unknown error", |v| v)
+            )));
+        }
+
+        // Broadcasting means the transaction is being sent to the network but not yet confirmed
+        // This is a transitional state that polling should have waited through
+        TransactionStatus::Broadcasting => {
+            log::warn!(
+                "txid {} is in Broadcasting state - transaction may not be fully confirmed yet",
+                result.id
+            );
+            // Continue to check for signature, but this might indicate
+            // incomplete confirmation
+        }
+
+        // These are the success states where we expect a signature
+        TransactionStatus::Completed | TransactionStatus::Confirming => {
+            log::debug!(
+                "Transaction {} completed with status {}",
+                result.id,
+                result.status
+            );
+        }
+    };
+    match sig {
+        None => Err(crate::Error::FireblocksNoSig(format!(
+            "No Signature available for txid {result} {}",
+            result
+                .error_description
+                .as_ref()
+                .map_or("unknown error", |v| v)
+        ))),
+        Some(s) => Ok(Signature::from_str(&s)?),
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use {crate::PollConfig, std::time::Duration};
+    use {super::*, crate::PollConfig, std::time::Duration};
 
     #[test]
     fn test_poll() {
         let poll = PollConfig::default();
         assert_eq!(poll.timeout, Duration::from_secs(15));
+    }
+
+    #[test]
+    fn test_signers() {
+        let mut signer = FireblocksSigner::new();
+        assert_eq!(signer.additional_signers.len(), 0);
+        signer.additional_signers(vec![Box::new(solana_keypair::Keypair::new())]);
+        assert_eq!(signer.additional_signers.len(), 1);
     }
 }

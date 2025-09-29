@@ -98,6 +98,7 @@ impl FireblocksSigner {
             .client(client)
             .asset(asset)
             .vault_id(cfg.signer.vault)
+            .additional_signers(Vec::with_capacity(0))
             .poll_config(
                 PollConfig::builder()
                     .timeout(cfg.signer.poll_timeout)
