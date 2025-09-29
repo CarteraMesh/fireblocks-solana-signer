@@ -53,7 +53,7 @@ use {
     solana_signature::Signature,
     solana_signer::Signer,
     solana_transaction::versioned::VersionedTransaction,
-    std::{fmt::Debug, str::FromStr, sync::Arc, time::Duration},
+    std::{fmt::Debug, rc::Rc, str::FromStr, sync::Arc, time::Duration},
 };
 pub use {keypair::keypair_from_seed, poll::*};
 /// A Solana signer implementation using Fireblocks as the backend signing
@@ -103,7 +103,7 @@ pub struct FireblocksSigner {
     /// The Fireblocks client for API communication.
     client: Option<Client>,
 
-    additional_signers: Vec<Box<dyn Signer>>,
+    additional_signers: Vec<Rc<dyn Signer>>,
 }
 
 impl Debug for FireblocksSigner {
@@ -117,7 +117,7 @@ impl Debug for FireblocksSigner {
 }
 
 impl FireblocksSigner {
-    pub fn additional_signers(&mut self, additional_signers: Vec<Box<dyn Signer>>) {
+    pub fn additional_signers(&mut self, additional_signers: Vec<Rc<dyn Signer>>) {
         self.additional_signers = additional_signers;
     }
 
@@ -450,7 +450,7 @@ mod test {
     fn test_signers() {
         let mut signer = FireblocksSigner::new();
         assert_eq!(signer.additional_signers.len(), 0);
-        signer.additional_signers(vec![Box::new(solana_keypair::Keypair::new())]);
+        signer.additional_signers(vec![std::rc::Rc::new(solana_keypair::Keypair::new())]);
         assert_eq!(signer.additional_signers.len(), 1);
     }
 }

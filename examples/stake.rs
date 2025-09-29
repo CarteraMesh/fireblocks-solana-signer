@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     let stake_signer = FireblocksSigner::new();
     let stake_account = stake_signer.pubkey();
     let mut signer: FireblocksSigner = FireblocksSigner::try_from_env(None)?;
-    signer.additional_signers(vec![Box::new(stake_signer)]);
+    signer.additional_signers(vec![std::rc::Rc::new(stake_signer)]);
     let rpc = RpcClient::new(
         std::env::var("RPC_URL")
             .ok()
