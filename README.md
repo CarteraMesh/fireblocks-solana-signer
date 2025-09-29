@@ -41,18 +41,6 @@ Or install via cargo:
 cargo add fireblocks-solana-signer@1
 ```
 
-## ⚠️ IMPORTANT: Automatic Transaction Broadcasting
-
-**This signer automatically broadcasts transactions to the Solana network.** When you call any signing method (like `try_sign`), Fireblocks will:
-
-1. Sign the transaction with your private key
-2. **Automatically broadcast the signed transaction to the network**
-3. Return the signature to your application
-
-This is a **purposeful security design decision** by Fireblocks to ensure transaction integrity. **You do not need to (and should not) broadcast the transaction yourself** after signing.
-
-The transaction is already on-chain when the signing method returns successfully!
-
 ## TLDR
 
 
@@ -84,20 +72,24 @@ fn main() -> anyhow::Result<()> {
     let message = Message::new(&[memo("fireblocks signer")], Some(&signer.pk));
     let mut tx = Transaction::new_unsigned(message);
 
-    // ⚠️ This signs AND broadcasts the transaction automatically!
     tx.try_sign(&[&signer], hash)?;
-
-    // ✅ Transaction is already on-chain, just get the signature
-    println!("Transaction broadcasted with signature: {}", tx.get_signature());
-
-    // ❌ DO NOT do this - transaction is already broadcasted!
-    // rpc.send_transaction(&tx)?; // This will likely fail
+    rpc.send_transaction(&tx)?;
 
     Ok(())
 }
 ```
 
 See [example](./examples/memo.rs)
+
+## Transaction Broadcasting
+
+By default, this signer only signs transactions and does not broadcast them. You control when transactions are sent to the network by calling `rpc.send_transaction()` yourself.
+
+To enable automatic broadcasting (where Fireblocks signs and broadcasts in one step), set:
+- Environment variable: `FIREBLOCKS_BROADCAST=true`
+- Config file: `broadcast = true` in the `[signer]` section
+
+When auto-broadcasting is enabled, transactions are sent to the network immediately after signing, and you should not call `send_transaction()` yourself.
 
 ## Environment Variables
 
@@ -111,6 +103,7 @@ See [example](./examples/memo.rs)
 | FIREBLOCKS_VAULT         | your vault id                                         |
 | FIREBLOCKS_POLL_TIMEOUT  | in seconds, total time to check status of transaction |
 | FIREBLOCKS_POLL_INTERVAL | in seconds                                            |
+| FIREBLOCKS_BROADCAST     | set to "true" to auto-broadcast transactions (default: false) |
 
 ## Configuration Files (Optional)
 
@@ -144,6 +137,7 @@ mainnet = false
 vault = "your-sandbox-vault-id"
 poll_timeout = 30
 poll_interval = 2
+broadcast = false # default is false
 ```
 
 **Example `~/.config/fireblocks/production.toml`:**
@@ -157,6 +151,7 @@ mainnet = true
 vault = "your-production-vault-id"
 poll_timeout = 60
 poll_interval = 3
+broadcast = true
 ```
 
 ### Using Configuration Files

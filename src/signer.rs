@@ -33,14 +33,9 @@
 
 #[cfg(feature = "config")]
 mod config;
-
 #[cfg(not(feature = "agave"))]
 mod keypair;
 mod poll;
-
-#[cfg(not(feature = "agave"))]
-pub use keypair::keypair_from_seed;
-pub use poll::*;
 use {
     crate::{
         Asset,
@@ -61,7 +56,7 @@ use {
     solana_transaction::versioned::VersionedTransaction,
     std::{fmt::Debug, str::FromStr, sync::Arc, time::Duration},
 };
-
+pub use poll::*;
 /// A Solana signer implementation using Fireblocks as the backend signing
 /// service.
 ///
@@ -105,6 +100,9 @@ pub struct FireblocksSigner {
     pub poll_config: PollConfig,
 
     pub keypair: Option<Arc<Keypair>>,
+
+    /// Sign and fireblocks will broadcast the transaction.
+    pub broadcast: bool,
 
     /// The Fireblocks client for API communication.
     client: Option<Client>,
@@ -164,7 +162,11 @@ impl FireblocksSigner {
             BASE64_STANDARD.encode(bincode::serialize(&versioned_transaction)?);
 
         log::debug!("tx base64 {transaction_base64}");
-        let resp = client.program_call(&self.asset, &self.vault_id, transaction_base64)?;
+        let resp = if self.broadcast {
+            client.program_call(&self.asset, &self.vault_id, transaction_base64)?
+        } else {
+            client.sign_only(&self.asset, &self.vault_id, transaction_base64)?
+        };
         let (result, sig) = client.poll(
             &resp.id,
             self.poll_config.timeout,
@@ -221,7 +223,9 @@ impl FireblocksSigner {
             }
 
             // These are the success states where we expect a signature
-            TransactionStatus::Completed | TransactionStatus::Confirming => {
+            TransactionStatus::Completed
+            | TransactionStatus::Confirming
+            | TransactionStatus::Signed => {
                 log::debug!(
                     "Transaction {} completed with status {}",
                     result.id,
@@ -366,6 +370,7 @@ impl FireblocksSigner {
             .asset(asset)
             .poll_config(poll)
             .pk(pk)
+            .broadcast(false)
             .build())
     }
 }
