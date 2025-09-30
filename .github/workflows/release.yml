@@ -140,10 +140,6 @@ jobs:
             [dependencies]
             fireblocks-solana-signer = "${{ steps.version.outputs.new_version }}"
             ```
-
-            ## Important Notes
-
-            ⚠️ **This signer automatically broadcasts transactions to the Solana network.** When you call any signing method, Fireblocks will sign and broadcast the transaction automatically. Do not broadcast the transaction yourself after signing.
           draft: false
           prerelease: false
           generate_release_notes: true

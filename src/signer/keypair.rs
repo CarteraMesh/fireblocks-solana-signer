@@ -26,13 +26,6 @@
 //! `solana_sdk::signature::Keypair`, providing the same function signatures and
 //! behavior. This ensures that existing code using Solana's Keypair can work
 //! unchanged when switched to FireblocksSigner.
-//!
-//! # Important Note
-//!
-//! When using FireblocksSigner with Fireblocks backend (not just the keypair
-//! compatibility layer), remember that **transactions are automatically
-//! broadcasted** to the Solana network upon signing. See the main crate
-//! documentation for more details on this behavior.
 
 use {
     super::FireblocksSigner,
