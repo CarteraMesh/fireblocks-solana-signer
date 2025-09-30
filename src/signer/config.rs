@@ -94,6 +94,7 @@ impl FireblocksSigner {
         )?;
 
         Ok(FireblocksSigner::builder()
+            .broadcast(false)
             .pk(pk)
             .client(client)
             .asset(asset)
