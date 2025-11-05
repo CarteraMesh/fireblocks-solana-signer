@@ -1,6 +1,8 @@
 use {
+    solana_hash::Hash,
     solana_message::Message,
-    solana_sdk::{hash::Hash, instruction::Instruction},
+    solana_signer::Signer,
+    spl_memo_interface::v3::ID,
     tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
 };
 
@@ -10,12 +12,7 @@ pub fn memo(
     signer: &fireblocks_solana_signer::FireblocksSigner,
     msg: &str,
 ) -> Message {
-    let i = Instruction {
-        program_id: spl_memo::id(),
-        accounts: vec![],
-        data: msg.as_bytes().to_vec(),
-    };
-
+    let i = spl_memo_interface::instruction::build_memo(&ID, msg.as_bytes(), &[&signer.pubkey()]);
     Message::new_with_blockhash(&[i], Some(&signer.pk), hash)
 }
 

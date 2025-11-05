@@ -104,13 +104,15 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@v2
         # with:
         # feature-group: ${{ matrix.features != 'default' && matrix.features || 'default-features' }}
+        #
+
   doc:
     # run docs generation on nightly rather than stable. This enables features like
     # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
     # API be documented as only available in some specific platforms.
     #
-    runs-on: ubuntu-latest
-    name: nightly / doc
+    runs-on: ${{ vars.RUNNER }}
+    name: doc
     steps:
       - uses: actions/checkout@v5
         with:
@@ -119,17 +121,51 @@ jobs:
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
-          workspaces: |
-            . -> target
-          # Specifies what to use as the backend providing cache
-          # Can be set to "github", "buildjet", or "warpbuild"
-          # default: "github"
-      - name: Install nightly
+      - name: Install rust
         uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-docs-rs
-        uses: dtolnay/install@cargo-docs-rs
+        run: |
+          cargo +nightly install cargo-docs-rs
       - name: cargo docs-rs
-        run: cargo docs-rs
+        run: |
+          cargo +nightly docs-rs
+
+  cargo_sort:
+    runs-on: ${{ vars.RUNNER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ubicloud/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          cache-bin: "true"
+      - name: Stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install cargo-sort
+        run: cargo install --locked cargo-sort
+      - name: Check `Cargo.toml` sort
+        run: |
+          ./scripts/cargo-sort.sh
+
+  machete:
+    runs-on: ${{ vars.RUNNER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ubicloud/rust-cache@v2
+      - name: Stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install `cargo-machete`
+        run: cargo install cargo-machete
+      - name: Check unused Cargo dependencies
+        run: cargo machete
+
   hack:
     # cargo-hack checks combinations of feature flags to ensure that features are all additive
     # which is required for feature unification
@@ -149,30 +185,3 @@ jobs:
         run: |
           sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
           cargo hack --feature-powerset check
-
-  udeps:
-    runs-on: ${{ vars.RUNNER }}
-    name: udeps
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          submodules: true
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-          workspaces: |
-            . -> target
-          # Specifies what to use as the backend providing cache
-          # Can be set to "github", "buildjet", or "warpbuild"
-          # default: "github"
-      - name: Install nightly
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Cache Rust dependencies
-        uses: ubicloud/rust-cache@v2
-        with:
-          key: nightly-udeps
-      - name: Install cargo-udeps
-        uses: taiki-e/install-action@cargo-udeps
-      - name: cargo udeps
-        run: cargo udeps
