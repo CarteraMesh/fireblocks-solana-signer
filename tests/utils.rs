@@ -54,7 +54,7 @@ pub fn signer() -> anyhow::Result<(FireblocksSigner, Arc<RpcClient>)> {
 fn get_address_lookup_table(rpc: &RpcClient, pubkey: &Pubkey) -> Result<LookupTableAccountType> {
     let account = rpc
         .get_account(pubkey)
-        .map_err(|e| Error::SolanaRpcErrpr(format!("{e}")))?;
+        .map_err(|e| Error::SolanaRpcError(format!("{e}")))?;
     // AddressLookupTableAccount::deserialize(&account.data)
     let table_type = parse_address_lookup_table(&account.data)
         .map_err(|error| crate::Error::ParseAddressTableError(error.to_string()))?;
