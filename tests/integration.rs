@@ -28,7 +28,33 @@ fn test_multi_sig_legacy() -> anyhow::Result<()> {
     let message = Message::new_with_blockhash(&[ins], Some(&fireblocks_signer.pubkey()), &hash);
     let mut tx: Transaction = Transaction::new_unsigned(message);
     kp.try_sign_multi_legacy(&mut tx, &[], hash)?; // don't need to really do this, i'm just testing if Keypair can see this function.
+    assert!(!tx.is_signed());
     fireblocks_signer.try_sign_multi_legacy(&mut tx, &[&kp], hash)?;
+    assert!(tx.is_signed());
+    tracing::info!("broadcasting transaction");
+    let sig = rpc.send_and_confirm_transaction(&tx)?;
+    tracing::info!("sig {sig}");
+    Ok(())
+}
+
+#[test]
+fn test_multi_sig_versioned() -> anyhow::Result<()> {
+    setup();
+    let (fireblocks_signer, rpc) = signer()?;
+    let kp_secret = std::env::var("TEST_PRIVATE_KEY")?;
+    let kp = solana_keypair::Keypair::from_base58_string(&kp_secret);
+    let hash = rpc.get_latest_blockhash()?;
+    let ins = build_memo(&MEMO_ID, "multi".as_bytes(), &[
+        &fireblocks_signer.pubkey(),
+        &kp.pubkey(),
+    ]);
+    let mut tx =
+        VersionedTransaction::new_unsigned_v0(&fireblocks_signer.pubkey(), &[ins], &[], hash)?;
+    kp.try_sign_multi_versioned(&mut tx, &[], Some(hash))?;
+    assert_ne!(tx.signatures[1], Signature::default());
+    assert_eq!(tx.signatures[0], Signature::default());
+    fireblocks_signer.try_sign_multi_versioned(&mut tx, &[&kp], Some(hash))?;
+    tracing::info!("broadcasting transaction");
     let sig = rpc.send_and_confirm_transaction(&tx)?;
     tracing::info!("sig {sig}");
     Ok(())
