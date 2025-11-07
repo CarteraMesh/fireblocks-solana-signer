@@ -31,7 +31,6 @@
 //! # }
 //! ```
 
-#[cfg(feature = "config")]
 mod config;
 mod keypair;
 mod poll;
@@ -119,47 +118,12 @@ impl Debug for FireblocksSigner {
 }
 
 impl FireblocksSigner {
-    /// Signs a transaction message using Fireblocks.
-    ///
-    /// This method handles the complete signing flow:
-    /// 1. Deserializes the message into a versioned transaction
-    /// 2. Encodes the transaction as base64
-    /// 3. Sends it to Fireblocks for signing
-    /// 4. Polls for completion
-    /// 5. Returns the signature
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The serialized transaction message to sign
-    ///
-    /// # Returns
-    ///
-    /// Returns a [`Result`] containing the [`Signature`] on success, or an
-    /// [`Error`] on failure.
-    ///
-    /// # Errors
-    ///
-    /// This method can fail if:
-    /// - The message cannot be deserialized
-    /// - The Fireblocks API call fails
-    /// - Polling times out
-    /// - No signature is returned from Fireblocks
-    ///
-    /// # Panics
-    ///
-    /// Panics if neither a keypair nor a Fireblocks client is configured.
-    /// This indicates a fundamental configuration error in the signer setup.
-    #[tracing::instrument(level = "debug", skip(message))]
-    fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
+    pub fn sign_versioned_transaction(&self, tx: &VersionedTransaction) -> Result<Signature> {
         let client = self.client.as_ref().expect(
             "FireblocksSigner must have either a keypair or a Fireblocks client configured",
         );
 
-        let versioned_message: VersionedMessage = bincode::deserialize(message)
-            .map_err(|e| Error::InvalidMessage(format!("Failed to deserialize message: {e}")))?;
-        let versioned_transaction = VersionedTransaction::new_unsigned(versioned_message);
-        let transaction_base64 =
-            BASE64_STANDARD.encode(bincode::serialize(&versioned_transaction)?);
+        let transaction_base64 = BASE64_STANDARD.encode(bincode::serialize(tx)?);
 
         log::debug!("tx base64 {transaction_base64}");
         let resp = if self.broadcast {
@@ -243,6 +207,44 @@ impl FireblocksSigner {
             ))),
             Some(s) => Ok(Signature::from_str(&s)?),
         }
+    }
+
+    /// Signs a transaction message using Fireblocks.
+    ///
+    /// This method handles the complete signing flow:
+    /// 1. Deserializes the message into a versioned transaction
+    /// 2. Encodes the transaction as base64
+    /// 3. Sends it to Fireblocks for signing
+    /// 4. Polls for completion
+    /// 5. Returns the signature
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The serialized transaction message to sign
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`Result`] containing the [`Signature`] on success, or an
+    /// [`Error`] on failure.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - The message cannot be deserialized
+    /// - The Fireblocks API call fails
+    /// - Polling times out
+    /// - No signature is returned from Fireblocks
+    ///
+    /// # Panics
+    ///
+    /// Panics if neither a keypair nor a Fireblocks client is configured.
+    /// This indicates a fundamental configuration error in the signer setup.
+    #[tracing::instrument(level = "debug", skip(message))]
+    fn sign_transaction(&self, message: &[u8]) -> Result<Signature> {
+        let versioned_message: VersionedMessage = bincode::deserialize(message)
+            .map_err(|e| Error::InvalidMessage(format!("Failed to deserialize message: {e}")))?;
+        let versioned_transaction = VersionedTransaction::new_unsigned(versioned_message);
+        self.sign_versioned_transaction(&versioned_transaction)
     }
 
     /// Creates a new [`FireblocksSigner`] from environment variables.

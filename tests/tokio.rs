@@ -17,7 +17,10 @@ async fn test_tokio() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let hash = rpc.get_latest_blockhash().await?;
-    let message = Message::new(&[memo("fireblocks signer tokio")], Some(&signer.pk));
+    let message = Message::new(
+        &[memo("fireblocks signer tokio", &signer.pk)],
+        Some(&signer.pk),
+    );
     assert!(signer.is_interactive());
 
     // Sign the transaction directly - no need for spawn_blocking as try_sign
@@ -40,8 +43,11 @@ async fn test_tokio_single() -> anyhow::Result<()> {
             .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
     );
     let hash = rpc.get_latest_blockhash().await?;
-    let message =
-        Message::new_with_blockhash(&[memo("fireblocks signer tokio")], Some(&signer.pk), &hash);
+    let message = Message::new_with_blockhash(
+        &[memo("fireblocks signer tokio", &signer.pk)],
+        Some(&signer.pk),
+        &hash,
+    );
     let message = VersionedMessage::Legacy(message);
     let tx = VersionedTransaction::try_new(message, &[&signer])?;
     let signature = tx.get_signature();

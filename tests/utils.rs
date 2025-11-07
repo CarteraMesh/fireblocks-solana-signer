@@ -4,9 +4,10 @@ use {
         LookupTableAccountType,
         parse_address_lookup_table,
     },
+    solana_hash::Hash,
+    solana_instruction::Instruction,
     solana_message::AddressLookupTableAccount,
     solana_rpc_client::rpc_client::RpcClient,
-    solana_sdk::instruction::Instruction,
     std::{
         env,
         str::FromStr,
@@ -15,13 +16,12 @@ use {
     tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
 };
 pub static INIT: Once = Once::new();
-pub fn memo(message: &str) -> Instruction {
-    Instruction {
-        program_id: spl_memo::id(),
-        accounts: vec![],
-        data: message.as_bytes().to_vec(),
-    }
+pub fn memo(msg: &str, signers: &Pubkey) -> Instruction {
+    spl_memo_interface::instruction::build_memo(&spl_memo_interface::v3::ID, msg.as_bytes(), &[
+        signers,
+    ])
 }
+
 #[allow(clippy::unwrap_used, clippy::missing_panics_doc)]
 pub fn setup() {
     INIT.call_once(|| {
@@ -54,7 +54,7 @@ pub fn signer() -> anyhow::Result<(FireblocksSigner, Arc<RpcClient>)> {
 fn get_address_lookup_table(rpc: &RpcClient, pubkey: &Pubkey) -> Result<LookupTableAccountType> {
     let account = rpc
         .get_account(pubkey)
-        .map_err(|e| Error::SolanaRpcErrpr(format!("{e}")))?;
+        .map_err(|e| Error::SolanaRpcError(format!("{e}")))?;
     // AddressLookupTableAccount::deserialize(&account.data)
     let table_type = parse_address_lookup_table(&account.data)
         .map_err(|error| crate::Error::ParseAddressTableError(error.to_string()))?;

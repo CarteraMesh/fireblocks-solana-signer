@@ -117,41 +117,9 @@ impl FireblocksSigner {
         }
     }
 
-    /// Constructs a `FireblocksSigner` from a byte array.
-    ///
-    /// This method provides compatibility with Solana's `Keypair::from_bytes()`
-    /// function, allowing for drop-in replacement when using feature flags.
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - A byte slice containing the keypair data (64 bytes: 32
-    ///   secret + 32 public)
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing either a `FireblocksSigner` or a signature error
-    /// if the bytes are invalid.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ed25519_dalek::SignatureError` if the provided bytes cannot be
-    /// parsed as a valid keypair.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use fireblocks_solana_signer::FireblocksSigner;
-    ///
-    /// let bytes = [0u8; 64]; // Example bytes (not a valid keypair)
-    /// match FireblocksSigner::from_bytes(&bytes) {
-    ///     Ok(signer) => println!("Signer created successfully"),
-    ///     Err(e) => println!("Failed to create signer: {}", e),
-    /// }
-    /// ```
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ed25519_dalek::SignatureError> {
-        #[allow(deprecated)]
-        let kp = Keypair::from_bytes(bytes)?;
-        Ok(Self::new_with_keypair(kp))
+    pub fn new_from_array(secret_key: [u8; 32]) -> Self {
+        let kp = Keypair::new_from_array(secret_key);
+        Self::new_with_keypair(kp)
     }
 
     // /// Constructs a `FireblocksSigner` from a 32-byte secret key array.

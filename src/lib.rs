@@ -2,8 +2,8 @@
 mod asset;
 mod error;
 mod extensions;
+mod multi;
 mod signer;
-
 pub use {
     asset::*,
     error::Error,
@@ -16,12 +16,15 @@ pub use {
         TransactionResponse,
         TransactionStatus,
     },
+    multi::*,
     signer::*,
     solana_pubkey::{Pubkey, pubkey},
     solana_signature::Signature,
     solana_signer::Signer,
     std::str::FromStr,
 };
+
+pub type DynSigner = dyn multi::MultiSigner;
 
 /// Environment variables used by the FireblocksSigner.
 #[derive(Debug, Clone, Copy)]

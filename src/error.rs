@@ -45,7 +45,7 @@ pub enum Error {
     ParseAddressTableError(String),
 
     #[error("Solan RPC Error {0}")]
-    SolanaRpcErrpr(String),
+    SolanaRpcError(String),
 
     #[error("pubkey on lookuptable is invalid")]
     InvalidPubkey,
@@ -59,7 +59,6 @@ pub enum Error {
     #[error("Tokio join error: {0}")]
     JoinError(String),
 
-    #[cfg(feature = "config")]
     #[error(transparent)]
     ConfigError(#[from] fireblocks_config::Error),
 }
