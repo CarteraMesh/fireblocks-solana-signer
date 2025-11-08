@@ -84,7 +84,10 @@ impl MultiSigner for FireblocksSigner {
         all_signers: &[&DynSigner],
         hash: Hash,
     ) -> Result<(), SignerError> {
-        info!("multi signing with {} signers", all_signers.len() - 1);
+        info!(
+            "multi signing: {} other signer(s) plus FireblocksSigner",
+            all_signers.len() - 1
+        );
         // Sign with all other signers first
         for signer in all_signers {
             if signer.pubkey() != self.pubkey() {
@@ -92,22 +95,29 @@ impl MultiSigner for FireblocksSigner {
             }
         }
 
-        // Convert to VersionedTransaction for Fireblocks
         let vtx: VersionedTransaction = tx.clone().into();
-
-        // Sign with Fireblocks using the partially-signed transaction
         let sig = self
             .sign_versioned_transaction(&vtx)
             .map_err(|e| SignerError::Custom(e.to_string()))?;
 
-        // Find position and insert signature
-        let positions = vtx.get_signing_keypair_positions(&[self.pubkey()])?;
-        if let Some(Some(pos)) = positions.first() {
-            tx.signatures[*pos] = sig;
-        } else {
-            return Err(SignerError::KeypairPubkeyMismatch);
+        // Find position and insert Fireblocks signature
+        let positions = tx.get_signing_keypair_positions(&[self.pubkey()])?;
+        match positions.first() {
+            Some(Some(pos)) => {
+                tracing::debug!("using slot {} for fireblocks sig {sig}", *pos);
+                tx.signatures[*pos] = sig;
+            }
+            Some(None) => {
+                return Err(SignerError::Custom(
+                    "Fireblocks pubkey not found in transaction's required signers".to_string(),
+                ));
+            }
+            None => {
+                return Err(SignerError::Custom(
+                    "Failed to get signing positions from transaction".to_string(),
+                ));
+            }
         }
-
         Ok(())
     }
 
@@ -131,12 +141,21 @@ impl MultiSigner for FireblocksSigner {
 
         // Find position and insert signature
         let positions = tx.get_signing_keypair_positions(&[self.pubkey()])?;
-        if let Some(Some(pos)) = positions.first() {
-            tx.signatures[*pos] = sig;
-        } else {
-            return Err(SignerError::KeypairPubkeyMismatch);
+        match positions.first() {
+            Some(Some(pos)) => {
+                tx.signatures[*pos] = sig;
+            }
+            Some(None) => {
+                return Err(SignerError::Custom(
+                    "Fireblocks pubkey not found in transaction's required signers".to_string(),
+                ));
+            }
+            None => {
+                return Err(SignerError::Custom(
+                    "Failed to get signing positions from transaction".to_string(),
+                ));
+            }
         }
-
         Ok(())
     }
 }
