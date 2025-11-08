@@ -32,6 +32,7 @@ async fn test_tokio() -> anyhow::Result<()> {
 
     let signature = tx.get_signature();
     tracing::info!("Transaction signature: {:?}", signature);
+    rpc.send_and_confirm_transaction(&tx).await?;
     Ok(())
 }
 
@@ -54,6 +55,7 @@ async fn test_tokio_single() -> anyhow::Result<()> {
     let tx = VersionedTransaction::try_new(message, &[&signer])?;
     let signature = tx.get_signature();
     tracing::info!("Transaction signature: {:?}", signature);
+    rpc.send_and_confirm_transaction(&tx).await?;
     Ok(())
 }
 

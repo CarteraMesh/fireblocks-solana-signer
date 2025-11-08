@@ -143,6 +143,7 @@ impl MultiSigner for FireblocksSigner {
         let positions = tx.get_signing_keypair_positions(&[self.pubkey()])?;
         match positions.first() {
             Some(Some(pos)) => {
+                tracing::debug!("using slot {} for fireblocks sig {sig}", *pos);
                 tx.signatures[*pos] = sig;
             }
             Some(None) => {
