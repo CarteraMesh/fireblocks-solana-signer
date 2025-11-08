@@ -121,7 +121,13 @@ impl Debug for FireblocksSigner {
     /// This implementation avoids exposing sensitive information like private
     /// keys or API credentials in debug output.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("vault: {} [{}]", self.vault_id, self.pk))
+        let pk_str = self.pk.to_string();
+        let pk_display = if pk_str.len() >= 8 {
+            &pk_str[..8]
+        } else {
+            &pk_str
+        };
+        f.write_fmt(format_args!("[vault:{}][{}]", self.vault_id, pk_display))
     }
 }
 

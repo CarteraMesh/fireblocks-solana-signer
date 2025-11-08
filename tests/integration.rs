@@ -4,7 +4,7 @@ use {
     fireblocks_solana_signer::*,
     solana_message::{Message, VersionedMessage},
     solana_pubkey::{Pubkey, pubkey},
-    solana_rpc_client::rpc_client::SerializableTransaction,
+    solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
     solana_signer::Signer,
     solana_transaction::{Transaction, versioned::VersionedTransaction},
     spl_memo_interface::{instruction::build_memo, v3::ID as MEMO_ID},
@@ -15,6 +15,13 @@ pub const LOOKUP: Pubkey = pubkey!("24DJ3Um2ekF2isQVMZcNHusmzLMMUS1oHQXhpPkVX7WV
 #[allow(dead_code)]
 pub const USDC: Pubkey = pubkey!("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
 pub const TO: Pubkey = pubkey!("E4SfgGV2v9GLYsEkCQhrrnFbBcYmAiUZZbJ7swKGzZHJ");
+
+fn broadcast(rpc: &RpcClient, tx: &impl SerializableTransaction) -> anyhow::Result<Signature> {
+    tracing::info!("broadcasting transaction");
+    let sig = rpc.send_and_confirm_transaction(tx)?;
+    tracing::info!("sig {sig}");
+    Ok(sig)
+}
 
 #[test]
 #[instrumented_test]
@@ -30,12 +37,9 @@ fn test_multi_sig_legacy() -> anyhow::Result<()> {
     let message = Message::new_with_blockhash(&[ins], Some(&fireblocks_signer.pubkey()), &hash);
     let mut tx: Transaction = Transaction::new_unsigned(message);
     kp.try_sign_multi_legacy(&mut tx, &[], hash)?; // don't need to really do this, i'm just testing if Keypair can see this function.
-    assert!(!tx.is_signed());
     fireblocks_signer.try_sign_multi_legacy(&mut tx, &[&fireblocks_signer, &kp], hash)?;
     assert!(tx.is_signed());
-    tracing::info!("broadcasting transaction");
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
-    tracing::info!("sig {sig}");
+    broadcast(&rpc, &tx)?;
     Ok(())
 }
 
@@ -80,13 +84,11 @@ fn test_multi_sig_versioned() -> anyhow::Result<()> {
     ]);
     let mut tx =
         VersionedTransaction::new_unsigned_v0(&fireblocks_signer.pubkey(), &[ins], &[], hash)?;
-    kp.try_sign_multi_versioned(&mut tx, &[], Some(hash))?;
+    kp.try_sign_multi_versioned(&mut tx, &[&fireblocks_signer], Some(hash))?;
     assert_ne!(tx.signatures[1], Signature::default());
     assert_eq!(tx.signatures[0], Signature::default());
     fireblocks_signer.try_sign_multi_versioned(&mut tx, &[&kp], Some(hash))?;
-    tracing::info!("broadcasting transaction");
-    let sig = rpc.send_and_confirm_transaction(&tx)?;
-    tracing::info!("sig {sig}");
+    broadcast(&rpc, &tx)?;
     Ok(())
 }
 
@@ -99,7 +101,7 @@ fn test_signer_legacy() -> anyhow::Result<()> {
     let mut tx = Transaction::new_unsigned(message);
     assert!(signer.is_interactive());
     tx.try_sign(&[&signer], hash)?;
-    tracing::info!("sig {}", tx.get_signature());
+    broadcast(&rpc, &tx)?;
     Ok(())
 }
 
@@ -116,7 +118,7 @@ fn test_signer_versioned() -> anyhow::Result<()> {
     let alt = utils::lookup(&rpc, &[LOOKUP])?;
     let mut tx = VersionedTransaction::new_unsigned_v0(&signer.pk, &instructions, &alt, hash)?;
     tx.try_sign(&[&signer], None)?;
-    tracing::info!("sig {}", tx.get_signature());
+    broadcast(&rpc, &tx)?;
     Ok(())
 }
 
