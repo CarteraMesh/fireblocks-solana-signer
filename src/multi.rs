@@ -1,8 +1,9 @@
 use {
-    crate::{FireblocksSigner, VersionedTransactionExtension},
+    crate::{DynSigner, FireblocksSigner, VersionedTransactionExtension},
     solana_hash::Hash,
     solana_signer::{Signer, SignerError},
     solana_transaction::{Transaction, versioned::VersionedTransaction},
+    tracing::info,
 };
 
 /// Trait for multi-signature signing that works with Fireblocks.
@@ -21,7 +22,7 @@ pub trait MultiSigner: Signer {
     fn try_sign_multi_legacy(
         &self,
         tx: &mut Transaction,
-        all_signers: &[&dyn MultiSigner],
+        all_signers: &[&DynSigner],
         hash: Hash,
     ) -> Result<(), SignerError>;
 
@@ -36,38 +37,57 @@ pub trait MultiSigner: Signer {
     fn try_sign_multi_versioned(
         &self,
         tx: &mut VersionedTransaction,
-        all_signers: &[&dyn MultiSigner],
+        all_signers: &[&DynSigner],
         hash: Option<Hash>,
     ) -> Result<(), SignerError>;
 }
 
-impl MultiSigner for solana_keypair::Keypair {
-    fn try_sign_multi_legacy(
-        &self,
-        tx: &mut Transaction,
-        _all_signers: &[&dyn MultiSigner],
-        hash: Hash,
-    ) -> Result<(), SignerError> {
-        tx.try_partial_sign(&[self], hash)
-    }
+/// Macro to implement default MultiSigner behavior for standard signer types.
+///
+/// This macro generates implementations for signers that don't need special
+/// multi-sig handling (i.e., they just sign their own part of the transaction).
+macro_rules! impl_default_multi_signer {
+    ($type:ty) => {
+        impl MultiSigner for $type {
+            fn try_sign_multi_legacy(
+                &self,
+                tx: &mut Transaction,
+                _all_signers: &[&DynSigner],
+                hash: Hash,
+            ) -> Result<(), SignerError> {
+                tx.try_partial_sign(&[self], hash)
+            }
 
-    fn try_sign_multi_versioned(
-        &self,
-        _tx: &mut VersionedTransaction,
-        _all_signers: &[&dyn MultiSigner],
-        _hash: Option<Hash>,
-    ) -> Result<(), SignerError> {
-        todo!("Implement versioned transaction multi-sig for Keypair")
-    }
+            fn try_sign_multi_versioned(
+                &self,
+                tx: &mut VersionedTransaction,
+                _all_signers: &[&DynSigner],
+                hash: Option<Hash>,
+            ) -> Result<(), SignerError> {
+                tx.try_sign(&[self], hash)?;
+                Ok(())
+            }
+        }
+    };
 }
+
+// Implement default multi-sig behavior for standard Solana signer types
+impl_default_multi_signer!(solana_keypair::Keypair);
+impl_default_multi_signer!(solana_presigner::Presigner);
+impl_default_multi_signer!(solana_remote_wallet::remote_keypair::RemoteKeypair);
+impl_default_multi_signer!(solana_signer::null_signer::NullSigner);
 
 impl MultiSigner for FireblocksSigner {
     fn try_sign_multi_legacy(
         &self,
         tx: &mut Transaction,
-        all_signers: &[&dyn MultiSigner],
+        all_signers: &[&DynSigner],
         hash: Hash,
     ) -> Result<(), SignerError> {
+        info!(
+            "multi signing: {} other signer(s) plus FireblocksSigner",
+            all_signers.len() - 1
+        );
         // Sign with all other signers first
         for signer in all_signers {
             if signer.pubkey() != self.pubkey() {
@@ -75,92 +95,68 @@ impl MultiSigner for FireblocksSigner {
             }
         }
 
-        // Convert to VersionedTransaction for Fireblocks
         let vtx: VersionedTransaction = tx.clone().into();
-
-        // Sign with Fireblocks using the partially-signed transaction
         let sig = self
             .sign_versioned_transaction(&vtx)
             .map_err(|e| SignerError::Custom(e.to_string()))?;
 
-        // Find position and insert signature
-        let positions = vtx.get_signing_keypair_positions(&[self.pubkey()])?;
-        if let Some(Some(pos)) = positions.first() {
-            tx.signatures[*pos] = sig;
-        } else {
-            return Err(SignerError::KeypairPubkeyMismatch);
+        // Find position and insert Fireblocks signature
+        let positions = tx.get_signing_keypair_positions(&[self.pubkey()])?;
+        match positions.first() {
+            Some(Some(pos)) => {
+                tracing::debug!("using slot {} for fireblocks sig {sig}", *pos);
+                tx.signatures[*pos] = sig;
+            }
+            Some(None) => {
+                return Err(SignerError::Custom(
+                    "Fireblocks pubkey not found in transaction's required signers".to_string(),
+                ));
+            }
+            None => {
+                return Err(SignerError::Custom(
+                    "Failed to get signing positions from transaction".to_string(),
+                ));
+            }
         }
-
         Ok(())
     }
 
     fn try_sign_multi_versioned(
         &self,
-        _tx: &mut VersionedTransaction,
-        _all_signers: &[&dyn MultiSigner],
-        _hash: Option<Hash>,
+        tx: &mut VersionedTransaction,
+        all_signers: &[&DynSigner],
+        hash: Option<Hash>,
     ) -> Result<(), SignerError> {
-        todo!("Implement versioned transaction multi-sig for FireblocksSigner")
-    }
-}
+        // Sign with all other signers first
+        for signer in all_signers {
+            if signer.pubkey() != self.pubkey() {
+                signer.try_sign_multi_versioned(tx, &[], hash)?;
+            }
+        }
 
-impl MultiSigner for solana_presigner::Presigner {
-    fn try_sign_multi_legacy(
-        &self,
-        tx: &mut Transaction,
-        _all_signers: &[&dyn MultiSigner],
-        hash: Hash,
-    ) -> Result<(), SignerError> {
-        tx.try_partial_sign(&[self], hash)
-    }
+        // Sign with Fireblocks using the partially-signed transaction
+        let sig = self
+            .sign_versioned_transaction(tx)
+            .map_err(|e| SignerError::Custom(e.to_string()))?;
 
-    fn try_sign_multi_versioned(
-        &self,
-        _tx: &mut VersionedTransaction,
-        _all_signers: &[&dyn MultiSigner],
-        _hash: Option<Hash>,
-    ) -> Result<(), SignerError> {
-        todo!("Implement versioned transaction multi-sig for FireblocksSigner")
-    }
-}
-
-impl MultiSigner for solana_remote_wallet::remote_keypair::RemoteKeypair {
-    fn try_sign_multi_legacy(
-        &self,
-        tx: &mut Transaction,
-        _all_signers: &[&dyn MultiSigner],
-        hash: Hash,
-    ) -> Result<(), SignerError> {
-        tx.try_partial_sign(&[self], hash)
-    }
-
-    fn try_sign_multi_versioned(
-        &self,
-        _tx: &mut VersionedTransaction,
-        _all_signers: &[&dyn MultiSigner],
-        _hash: Option<Hash>,
-    ) -> Result<(), SignerError> {
-        todo!("Implement versioned transaction multi-sig for FireblocksSigner")
-    }
-}
-
-impl MultiSigner for solana_signer::null_signer::NullSigner {
-    fn try_sign_multi_legacy(
-        &self,
-        tx: &mut Transaction,
-        _all_signers: &[&dyn MultiSigner],
-        hash: Hash,
-    ) -> Result<(), SignerError> {
-        tx.try_partial_sign(&[self], hash)
-    }
-
-    fn try_sign_multi_versioned(
-        &self,
-        _tx: &mut VersionedTransaction,
-        _all_signers: &[&dyn MultiSigner],
-        _hash: Option<Hash>,
-    ) -> Result<(), SignerError> {
-        todo!("Implement versioned transaction multi-sig for FireblocksSigner")
+        // Find position and insert signature
+        let positions = tx.get_signing_keypair_positions(&[self.pubkey()])?;
+        match positions.first() {
+            Some(Some(pos)) => {
+                tx.signatures[*pos] = sig;
+            }
+            Some(None) => {
+                return Err(SignerError::Custom(
+                    "Fireblocks pubkey not found in transaction's required signers".to_string(),
+                ));
+            }
+            None => {
+                return Err(SignerError::Custom(
+                    "Failed to get signing positions from transaction".to_string(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

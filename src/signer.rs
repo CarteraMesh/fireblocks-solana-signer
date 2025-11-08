@@ -107,6 +107,14 @@ pub struct FireblocksSigner {
     client: Option<Client>,
 }
 
+impl PartialEq for FireblocksSigner {
+    fn eq(&self, other: &Self) -> bool {
+        self.pubkey() == other.pubkey()
+    }
+}
+
+impl Eq for FireblocksSigner {}
+
 impl Debug for FireblocksSigner {
     /// Formats the signer for debugging, showing vault ID and public key.
     ///

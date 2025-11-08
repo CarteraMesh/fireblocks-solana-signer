@@ -47,6 +47,7 @@ solana-rpc-client = { version = "3", default-features = false }
 solana-rpc-client-api = { version = "3" }
 solana-system-interface = { version = "2", features = ["bincode"] }
 spl-memo-interface = { version = "2" }
+test_macros = { path = "tests/test_macros" }
 tokio = { version = "1", features = ["full"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 

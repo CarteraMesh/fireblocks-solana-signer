@@ -13,8 +13,8 @@ env:
   FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
   FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
   RUST_LOG: "fireblocks_solana_signer=debug"
-  FIREBLOCKS_ENDPOINT: https://sandbox-api.fireblocks.io
-  FIREBLOCKS_POLL_TIMEOUT: "15"
+  FIREBLOCKS_ENDPOINT: https://api.fireblocks.io
+  FIREBLOCKS_POLL_TIMEOUT: "30"
   FIREBLOCKS_POLL_INTERVAL: "3"
   FIREBLOCKS_DEVNET: "true"
   FIREBLOCKS_VAULT: "0"
@@ -68,16 +68,12 @@ jobs:
         with:
           cache-on-failure: "true"
           cache-all-crates: "true"
-          workspaces: |
-            . -> target
-          # Specifies what to use as the backend providing cache
-          # Can be set to "github", "buildjet", or "warpbuild"
-          # default: "github"
       - uses: CarteraMesh/fireblocks-config-action@v1
         with:
           fireblocks-secret: |
             ${{ secrets.FIREBLOCKS_SECRET }}
           fireblocks-api-key: ${{ secrets.FIREBLOCKS_API_KEY }}
+          fireblocks-endpoint: ${{ env.FIREBLOCKS_ENDPOINT }}
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -93,9 +89,9 @@ jobs:
       - name: cargo llvm-cov (${{ matrix.features }})
         run: |
           if [ "${{ matrix.features }}" == "default" ]; then
-            cargo llvm-cov --locked --lcov --output-path lcov-${{ matrix.features }}.info
+            cargo llvm-cov --locked --lcov --output-path lcov-${{ matrix.features }}.info --no-fail-fast -- --nocapture
           else
-            cargo llvm-cov --locked --features "${{ matrix.features }}" --lcov --output-path lcov-${{ matrix.features }}.info
+            cargo llvm-cov --locked --features "${{ matrix.features }}" --lcov --output-path lcov-${{ matrix.features }}.info --no-fail-fast -- --nocapture
           fi
       - name: Record Rust version
         run: echo "RUST=$(rustc --version)" >> "$GITHUB_ENV"

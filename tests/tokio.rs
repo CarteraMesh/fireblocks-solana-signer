@@ -4,10 +4,12 @@ use {
     solana_message::{Message, VersionedMessage},
     solana_rpc_client::rpc_client::SerializableTransaction,
     solana_transaction::{Transaction, versioned::VersionedTransaction},
+    test_macros::instrumented_test,
     utils::{memo, setup, signer},
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[instrumented_test]
 async fn test_tokio() -> anyhow::Result<()> {
     setup();
     let (signer, _) = signer()?;
