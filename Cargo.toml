@@ -30,7 +30,7 @@ solana-instruction = { version = "3" }
 solana-keypair = { version = "3" }
 solana-message = { version = "3" }
 solana-presigner = "3.0.0"
-solana-pubkey = { version = "3", features = ["serde"] }
+solana-pubkey = { version = "4", features = ["serde"] }
 solana-remote-wallet = { version = "3.0.10", default-features = false }
 solana-signature = { version = "3" }
 solana-signer = { version = "3" }
