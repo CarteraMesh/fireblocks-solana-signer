@@ -25,7 +25,7 @@ fireblocks-config = { version = "0.1" }
 fireblocks-signer-transport = { version = "0.1" }
 log = { version = ">=0.3" }
 serde_json = { version = "1" }
-solana-hash = { version = "3.0" }
+solana-hash = { version = "4.0" }
 solana-instruction = { version = "3.0" }
 solana-keypair = { version = "3.0" }
 solana-message = { version = "3.0" }
