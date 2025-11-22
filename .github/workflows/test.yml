@@ -1,11 +1,3 @@
-# This is the main CI workflow that runs the test suite on all pushes to main and all pull requests.
-# It runs the following jobs:
-# - required: runs the test suite on ubuntu with stable and beta rust toolchains
-# - minimal: runs the test suite with the minimal versions of the dependencies that satisfy the
-#   requirements of this crate, and its dependencies
-# - os-check: runs the test suite on mac and windows
-# - coverage: runs the test suite and collects coverage information
-# See check.yml for information about how the concurrency cancellation and workflow triggering works
 permissions:
   contents: read
 env:
@@ -13,7 +5,7 @@ env:
   FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
   FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
   RUST_LOG: "fireblocks_solana_signer=debug"
-  FIREBLOCKS_ENDPOINT: https://api.fireblocks.io
+  FIREBLOCKS_ENDPOINT: ${{ vars.FIREBLOCKS_ENDPOINT }}
   FIREBLOCKS_POLL_TIMEOUT: "30"
   FIREBLOCKS_POLL_INTERVAL: "3"
   FIREBLOCKS_DEVNET: "true"
