@@ -23,18 +23,10 @@ bincode = "1"
 bon = "3.6.4"
 fireblocks-config = { version = "0.1" }
 fireblocks-signer-transport = { version = "0.1" }
-log = { version = ">=0.3" }
 serde_json = { version = "1" }
-solana-hash = { version = "3.0" }
-solana-instruction = { version = "3.0" }
-solana-keypair = { version = "3.0" }
-solana-message = { version = "3.0" }
-solana-presigner = "3.0.0"
-solana-pubkey = { version = "3.0", features = ["serde"] }
-solana-remote-wallet = { version = "3.0.10", default-features = false }
-solana-signature = { version = "3.0" }
-solana-signer = { version = "3.0" }
-solana-transaction = { version = "3.0", features = ["bincode"] }
+solana-sdk = { version = "3.0.0", features = ["full"] }
+# solana-remote-wallet = { version = "=3.0.11" }
+solana-signature = { version = "3" }
 thiserror = "2"
 tracing = { version = "0.1" }
 
@@ -42,9 +34,8 @@ tracing = { version = "0.1" }
 anyhow = "1"
 dotenvy = "0.15"
 lazy_static = "1.4.0"
-solana-account-decoder = { version = "3.0" }
-solana-rpc-client = { version = "3.0", default-features = false }
-solana-rpc-client-api = { version = "3.0" }
+solana-account-decoder = { version = "3" }
+solana-client = { version = "3", default-features = false }
 solana-system-interface = { version = "2", features = ["bincode"] }
 spl-memo-interface = { version = "2" }
 test_macros = { path = "tests/test_macros" }
@@ -54,4 +45,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
 [lints.rust]
 unused_imports = "allow"
 deprecated = "allow"
-

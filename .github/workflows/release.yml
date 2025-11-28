@@ -1,41 +1,23 @@
-name: Release
-
+permissions:
+  contents: write
+  checks: write
 on:
   workflow_dispatch:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
       version:
-        description: "Version to release (e.g., 0.1.11, patch, minor, major)"
+        description: "Version to release (patch, minor, major, 0.1.xx)"
         required: true
         type: string
-
+name: release
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install GPG dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgpgme-dev
-
-      - name: Install cargo-release
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-release
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Release
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cargo release --features default --execute --no-confirm ${{ inputs.version }}
+  releaser:
+    name: release
+    uses: carteramesh/ci/.github/workflows/rust-release.yml@main
+    secrets: inherit
+    with:
+      runner: ${{ vars.RUNNER }}
+      version: ${{ inputs.version }}
+      ubuntu_packages: "libgpgme-dev"

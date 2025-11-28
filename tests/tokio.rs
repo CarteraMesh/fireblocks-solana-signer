@@ -1,9 +1,12 @@
 mod utils;
 use {
-    fireblocks_solana_signer::*,
-    solana_message::{Message, VersionedMessage},
-    solana_rpc_client::rpc_client::SerializableTransaction,
-    solana_transaction::{Transaction, versioned::VersionedTransaction},
+    fireblocks_solana_signer::FireblocksSigner,
+    solana_client::rpc_client::SerializableTransaction,
+    solana_sdk::{
+        message::{Message, VersionedMessage},
+        signature::Signer,
+        transaction::{Transaction, VersionedTransaction},
+    },
     test_macros::instrumented_test,
     utils::{memo, setup, signer},
 };
@@ -13,10 +16,10 @@ use {
 async fn test_tokio() -> anyhow::Result<()> {
     setup();
     let (signer, _) = signer()?;
-    let rpc = solana_rpc_client::nonblocking::rpc_client::RpcClient::new(
+    let rpc = solana_client::nonblocking::rpc_client::RpcClient::new(
         std::env::var("RPC_URL")
             .ok()
-            .unwrap_or("https://rpc.ankr.com/solana_devnet".to_string()),
+            .unwrap_or("https://api-devnet.solana.com".to_string()),
     );
     let hash = rpc.get_latest_blockhash().await?;
     let message = Message::new(

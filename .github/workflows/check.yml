@@ -1,187 +1,23 @@
-# This workflow runs whenever a PR is opened or updated, or a commit is pushed to main. It runs
-# several checks:
-# - fmt: checks that the code is formatted according to rustfmt
-# - clippy: checks that the code does not contain any clippy warnings
-# - doc: checks that the code can be documented without errors
-# - hack: check combinations of feature flags
-# - msrv: check that the msrv specified in the crate is correct
 permissions:
   contents: read
-
-env:
-  RPC_URL: ${{ secrets.RPC_URL }}
-  FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
-  FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
-  RUST_LOG: "fireblocks_solana_signer=debug"
-  FIREBLOCKS_ENDPOINT: https://api.fireblocks.io
-  FIREBLOCKS_POLL_TIMEOUT: "30"
-  FIREBLOCKS_POLL_INTERVAL: "3"
-  FIREBLOCKS_DEVNET: "true"
-  FIREBLOCKS_VAULT: "0"
-# This configuration allows maintainers of this repo to create a branch and pull request based on
-# the new branch. Restricting the push trigger to the main branch ensures that the PR only gets
-# built once.
+  checks: write
 on:
   push:
     branches: [main]
   pull_request:
-# If new code is pushed to a PR branch, then cancel in progress workflows for that PR. Ensures that
-# we don't waste CI time, and returns results quicker https://github.com/jonhoo/rust-ci-conf/pull/5
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+
 name: check
 jobs:
-  fmt:
-    runs-on: ${{ vars.RUNNER }}
-    name: nightly fmt
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - name: Install nightyly
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
-      - name: cargo fmt --check
-        run: |
-          cargo +nightly fmt --check --all
-  clippy:
-    runs-on: ${{ vars.RUNNER }}
-    name: ${{ matrix.toolchain }} / clippy
-    permissions:
-      contents: read
-      checks: write
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain: [stable]
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-          workspaces: |
-            . -> target
-          # Specifies what to use as the backend providing cache
-          # Can be set to "github", "buildjet", or "warpbuild"
-          # default: "github"
-      - name: Install ${{ matrix.toolchain }}
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          components: clippy
-      - name: ${{ matrix.toolchain }} cargo clippy
-        uses: giraffate/clippy-action@v1
-        with:
-          reporter: "github-pr-check"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: --all-features
-  semver:
-    runs-on: ${{ vars.RUNNER }}
-    name: semver
-    if: true
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-          workspaces: |
-            . -> target
-          # Specifies what to use as the backend providing cache
-          # Can be set to "github", "buildjet", or "warpbuild"
-          # default: "github"
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - name: gpg
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
-      - name: cargo-semver-checks
-        uses: obi1kenobi/cargo-semver-checks-action@v2
-        # with:
-        # feature-group: ${{ matrix.features != 'default' && matrix.features || 'default-features' }}
-        #
-
-  doc:
-    # run docs generation on nightly rather than stable. This enables features like
-    # https://doc.rust-lang.org/beta/unstable-book/language-features/doc-cfg.html which allows an
-    # API be documented as only available in some specific platforms.
-    #
-    runs-on: ${{ vars.RUNNER }}
-    name: doc
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-      - name: Install rust
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Install cargo-docs-rs
-        run: |
-          cargo +nightly install cargo-docs-rs
-      - name: cargo docs-rs
-        run: |
-          cargo +nightly docs-rs
-
-  cargo_sort:
-    runs-on: ${{ vars.RUNNER }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-          cache-workspace-crates: "true"
-          cache-bin: "true"
-      - name: Stable Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Install cargo-sort
-        run: cargo install --locked cargo-sort
-      - name: Check `Cargo.toml` sort
-        run: |
-          ./scripts/cargo-sort.sh
-
-  machete:
-    runs-on: ${{ vars.RUNNER }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - uses: ubicloud/rust-cache@v2
-      - name: Stable Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Install `cargo-machete`
-        run: cargo install cargo-machete
-      - name: Check unused Cargo dependencies
-        run: cargo machete
-
-  hack:
-    # cargo-hack checks combinations of feature flags to ensure that features are all additive
-    # which is required for feature unification
-    runs-on: ${{ vars.RUNNER }}
-    name: ubuntu / stable / features
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - name: cargo install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
-      # intentionally no target specifier; see https://github.com/jonhoo/rust-ci-conf/pull/4
-      # --feature-powerset runs for every combination of features
-      - name: cargo hack
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
-          cargo hack --feature-powerset check
+  checker:
+    name: Rust Checks
+    uses: carteramesh/ci/.github/workflows/rust-check.yml@main
+    secrets: inherit
+    with:
+      runner: ${{ inputs.runner || vars.RUNNER }}
+      ubuntu_packages: "libgpgme-dev"
+      features: '["default", "gpg"]'

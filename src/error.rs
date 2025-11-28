@@ -3,7 +3,7 @@ use {std::sync::mpsc::RecvError, thiserror::Error};
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    PubkeyError(#[from] solana_pubkey::ParsePubkeyError),
+    PubkeyError(#[from] solana_sdk::pubkey::ParsePubkeyError),
 
     #[error(transparent)]
     BincodeEncodeError(#[from] bincode::Error),
@@ -21,7 +21,7 @@ pub enum Error {
     ChannelRecvError(#[from] RecvError),
 
     #[error(transparent)]
-    SignatureError(#[from] solana_signature::ParseSignatureError),
+    SignatureError(#[from] solana_sdk::signature::ParseSignatureError),
 
     #[error(transparent)]
     FireblocksClientError(#[from] fireblocks_signer_transport::FireblocksClientError),

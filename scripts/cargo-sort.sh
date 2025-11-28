@@ -10,8 +10,8 @@ for package in $PACKAGES; do
     then
         if [ "$1" == "--fix" ]
         then
-            cargo sort -p -g "$(dirname "$package")"  | grep -E  -v Checking > /tmp/t && \
-            mv -f -v  /tmp/t $package
+            cargo sort -p -g "$(dirname "$package")"  | grep -E  -v Checking > /tmp/.cargo.toml && \
+            mv -f -v  /tmp/.cargo.toml $package
         else
             exit 1
         fi
