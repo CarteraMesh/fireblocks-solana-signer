@@ -1,9 +1,9 @@
 use fireblocks_solana_signer::FireblocksSigner;
 mod common;
-use solana_transaction::Transaction;
+use solana_sdk::transaction::Transaction;
 
 fn main() -> anyhow::Result<()> {
-    use solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction};
+    use solana_client::rpc_client::{RpcClient, SerializableTransaction};
 
     common::setup();
     let signer: FireblocksSigner = FireblocksSigner::try_from_env(None)?;

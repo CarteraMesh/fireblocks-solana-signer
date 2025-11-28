@@ -1,7 +1,5 @@
 use {
-    solana_hash::Hash,
-    solana_message::Message,
-    solana_signer::Signer,
+    solana_sdk::{hash::Hash, message::Message, signature::Signer},
     spl_memo_interface::v3::ID,
     tracing_subscriber::{EnvFilter, fmt::format::FmtSpan},
 };

@@ -1,97 +1,21 @@
-permissions:
-  contents: read
-env:
-  RPC_URL: ${{ secrets.RPC_URL }}
-  FIREBLOCKS_API_KEY: ${{ secrets.FIREBLOCKS_API_KEY }}
-  FIREBLOCKS_SECRET: ${{ secrets.FIREBLOCKS_SECRET }}
-  RUST_LOG: "fireblocks_solana_signer=debug"
-  FIREBLOCKS_ENDPOINT: ${{ vars.FIREBLOCKS_ENDPOINT }}
-  FIREBLOCKS_POLL_TIMEOUT: "90"
-  FIREBLOCKS_POLL_INTERVAL: "5"
-  FIREBLOCKS_DEVNET: "true"
-  FIREBLOCKS_VAULT: "0"
-  TEST_PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
+name: test
 on:
   push:
     branches: [main]
   pull_request:
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
-name: test
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner to use"
+        required: false
 jobs:
-  os-check:
-    if: false
-    # run cargo test on mac and windows
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} / stable
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest]
-    steps:
-      # if your project needs OpenSSL, uncomment this to fix Windows builds.
-      # it's commented out by default as the install command takes 5-10m.
-      # - run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
-      #   if: runner.os == 'Windows'
-      # - run: vcpkg install openssl:x64-windows-static-md
-      #   if: runner.os == 'Windows'
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: cargo build
-        run: cargo build --locked --all-targets
-  coverage:
-    runs-on: ${{ vars.RUNNER }}
-    name: ubuntu / stable / coverage / ${{ matrix.features }}
-    strategy:
-      fail-fast: false
-      matrix:
-        features:
-          - "gpg"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ubicloud/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-      - uses: CarteraMesh/fireblocks-config-action@v1
-        with:
-          fireblocks-secret: |
-            ${{ secrets.FIREBLOCKS_SECRET }}
-          fireblocks-api-key: ${{ secrets.FIREBLOCKS_API_KEY }}
-          fireblocks-endpoint: ${{ env.FIREBLOCKS_ENDPOINT }}
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-      - name: gpg
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y libgpgme-dev
-      - name: cargo install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: cargo generate-lockfile
-        if: hashFiles('Cargo.lock') == ''
-        run: cargo generate-lockfile
-      - name: cargo llvm-cov (${{ matrix.features }})
-        run: |
-          if [ "${{ matrix.features }}" == "default" ]; then
-            cargo llvm-cov --locked --lcov --output-path lcov-${{ matrix.features }}.info --no-fail-fast -- --nocapture
-          else
-            cargo llvm-cov --locked --features "${{ matrix.features }}" --lcov --output-path lcov-${{ matrix.features }}.info --no-fail-fast -- --nocapture
-          fi
-      - name: Record Rust version
-        run: echo "RUST=$(rustc --version)" >> "$GITHUB_ENV"
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v5
-        with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: lcov-${{ matrix.features }}.info
-          flags: ${{ matrix.features }}
-          env_vars: OS,RUST
+  test:
+    name: Rust Tests
+    uses: carteramesh/ci/.github/workflows/rust-test.yml@main
+    secrets: inherit
+    with:
+      runner: ${{ inputs.runner || vars.RUNNER }}
+      ubuntu_packages: "libgpgme-dev"
+      features: '["default", "gpg"]'
+      fireblocks: true
+      rustlog: "fireblocks_solana_signer=debug,info"

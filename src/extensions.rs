@@ -12,14 +12,13 @@
 //!
 //! Credit: Shameless borrowed from <https://github.com/ifiokjr/wasm_solana/blob/main/crates/wasm_client_solana/src/extensions.rs>
 
-use {
-    solana_hash::Hash,
-    solana_instruction::Instruction,
-    solana_message::{AddressLookupTableAccount, CompileError, VersionedMessage, v0},
-    solana_pubkey::Pubkey,
-    solana_signature::Signature,
-    solana_signer::{SignerError, signers::Signers},
-    solana_transaction::versioned::VersionedTransaction,
+use solana_sdk::{
+    hash::Hash,
+    instruction::Instruction,
+    message::{AddressLookupTableAccount, CompileError, VersionedMessage, v0},
+    pubkey::Pubkey,
+    signature::{Signature, SignerError, signers::Signers},
+    transaction::VersionedTransaction,
 };
 
 /// Extension trait for [`VersionedTransaction`] that adds support for partial

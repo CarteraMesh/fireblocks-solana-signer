@@ -29,9 +29,7 @@
 
 use {
     super::FireblocksSigner,
-    solana_keypair::Keypair,
-    solana_signature::error::Error as SignatureError,
-    solana_signer::Signer,
+    solana_sdk::{signature::Keypair, signer::Signer},
 };
 
 /// The length of a keypair in bytes (32 bytes secret key + 32 bytes public key)
@@ -60,7 +58,7 @@ const KEYPAIR_LENGTH: usize = 64;
 /// let signer = keypair_from_seed(seed).expect("Failed to create signer from seed");
 /// ```
 pub fn keypair_from_seed(seed: &[u8]) -> Result<FireblocksSigner, Box<dyn std::error::Error>> {
-    let kp = solana_keypair::keypair_from_seed(seed)?;
+    let kp = solana_sdk::signature::keypair_from_seed(seed)?;
     Ok(FireblocksSigner::new_with_keypair(kp))
 }
 
@@ -222,7 +220,7 @@ impl FireblocksSigner {
 }
 
 impl TryFrom<&[u8]> for FireblocksSigner {
-    type Error = SignatureError;
+    type Error = solana_signature::error::Error;
 
     fn try_from(bytes: &[u8]) -> std::result::Result<Self, Self::Error> {
         let kp = Keypair::try_from(bytes)?;

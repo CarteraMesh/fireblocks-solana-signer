@@ -48,7 +48,7 @@ impl Default for PollConfig {
         Self {
             timeout: Duration::from_secs(15),
             interval: Duration::from_secs(5),
-            callback: |t| log::info!("{t}"),
+            callback: |t| tracing::info!("{t}"),
         }
     }
 }

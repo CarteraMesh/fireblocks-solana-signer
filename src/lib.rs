@@ -2,8 +2,9 @@
 mod asset;
 mod error;
 mod extensions;
-mod multi;
+// mod multi;
 mod signer;
+use solana_sdk::pubkey::Pubkey;
 pub use {
     asset::*,
     error::Error,
@@ -16,15 +17,12 @@ pub use {
         TransactionResponse,
         TransactionStatus,
     },
-    multi::*,
+    //    multi::*,
     signer::*,
-    solana_pubkey::{Pubkey, pubkey},
-    solana_signature::Signature,
-    solana_signer::Signer,
     std::str::FromStr,
 };
 
-pub type DynSigner = dyn multi::MultiSigner;
+// pub type DynSigner = dyn multi::MultiSigner;
 
 /// Environment variables used by the FireblocksSigner.
 #[derive(Debug, Clone, Copy)]
@@ -87,7 +85,7 @@ pub fn build_client_safe(builder: ClientBuilder) -> Result<Client> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if tx.send(builder.build()).is_err() {
-            log::error!("Failed to send result back to main thread");
+            tracing::error!("Failed to send result back to main thread");
         }
     });
     Ok(rx.recv()??)
@@ -182,10 +180,10 @@ pub fn build_client_and_address_blocking_safe(
                 };
                 // Don't ignore send errors
                 if tx.send(result).is_err() {
-                    log::error!("Failed to send result back to main thread");
+                    tracing::error!("Failed to send result back to main thread");
                 }
             });
-            log::debug!("waiting for client builder response...");
+            tracing::debug!("waiting for client builder response...");
 
             // Add timeout to prevent infinite blocking
             match rx.recv_timeout(std::time::Duration::from_secs(
@@ -193,7 +191,7 @@ pub fn build_client_and_address_blocking_safe(
             )) {
                 Ok(result) => Ok(result?),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    log::error!("Client initialization timed out");
+                    tracing::error!("Client initialization timed out");
                     Err(Error::Timeout(
                         "Client initialization timed out".to_string(),
                     ))
@@ -201,7 +199,7 @@ pub fn build_client_and_address_blocking_safe(
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                     // Check if thread panicked
                     if let Err(panic_err) = handle.join() {
-                        log::error!("Client initialization thread panicked: {panic_err:?}");
+                        tracing::error!("Client initialization thread panicked: {panic_err:?}");
                         Err(Error::ThreadPanic(
                             "Client initialization thread panicked".to_string(),
                         ))

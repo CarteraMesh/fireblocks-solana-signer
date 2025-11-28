@@ -1,13 +1,16 @@
 use {
-    fireblocks_solana_signer::*,
+    fireblocks_solana_signer::{Error, FireblocksSigner, Result},
     solana_account_decoder::parse_address_lookup_table::{
         LookupTableAccountType,
         parse_address_lookup_table,
     },
-    solana_hash::Hash,
-    solana_instruction::Instruction,
-    solana_message::AddressLookupTableAccount,
-    solana_rpc_client::rpc_client::RpcClient,
+    solana_client::rpc_client::RpcClient,
+    solana_sdk::{
+        hash::Hash,
+        instruction::Instruction,
+        message::AddressLookupTableAccount,
+        pubkey::Pubkey,
+    },
     std::{
         env,
         str::FromStr,
@@ -17,7 +20,12 @@ use {
 };
 pub static INIT: Once = Once::new();
 pub fn memo(msg: &str, signers: &Pubkey) -> Instruction {
-    spl_memo_interface::instruction::build_memo(&spl_memo_interface::v3::ID, msg.as_bytes(), &[
+    let message = format!(
+        "{} {}",
+        msg,
+        std::env::var("MEMO").ok().unwrap_or("default".to_string()),
+    );
+    spl_memo_interface::instruction::build_memo(&spl_memo_interface::v3::ID, message.as_bytes(), &[
         signers,
     ])
 }
@@ -57,7 +65,7 @@ fn get_address_lookup_table(rpc: &RpcClient, pubkey: &Pubkey) -> Result<LookupTa
         .map_err(|e| Error::SolanaRpcError(format!("{e}")))?;
     // AddressLookupTableAccount::deserialize(&account.data)
     let table_type = parse_address_lookup_table(&account.data)
-        .map_err(|error| crate::Error::ParseAddressTableError(error.to_string()))?;
+        .map_err(|error| Error::ParseAddressTableError(error.to_string()))?;
 
     Ok(table_type)
 }

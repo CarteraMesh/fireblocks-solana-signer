@@ -1,8 +1,10 @@
 use {
     crate::{DynSigner, FireblocksSigner, VersionedTransactionExtension},
-    solana_hash::Hash,
-    solana_signer::{Signer, SignerError},
-    solana_transaction::{Transaction, versioned::VersionedTransaction},
+    solana_sdk::{
+        hash::Hash,
+        signature::{Signer, SignerError},
+        transaction::{Transaction, VersionedTransaction},
+    },
     tracing::info,
 };
 
@@ -72,10 +74,10 @@ macro_rules! impl_default_multi_signer {
 }
 
 // Implement default multi-sig behavior for standard Solana signer types
-impl_default_multi_signer!(solana_keypair::Keypair);
-impl_default_multi_signer!(solana_presigner::Presigner);
+impl_default_multi_signer!(solana_sdk::signature::Keypair);
+impl_default_multi_signer!(solana_sdk::signature::Presigner);
 impl_default_multi_signer!(solana_remote_wallet::remote_keypair::RemoteKeypair);
-impl_default_multi_signer!(solana_signer::null_signer::NullSigner);
+impl_default_multi_signer!(solana_sdk::signature::null_signer::NullSigner);
 
 impl MultiSigner for FireblocksSigner {
     fn try_sign_multi_legacy(

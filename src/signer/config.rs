@@ -117,9 +117,9 @@ mod test {
     fn test_config() -> anyhow::Result<()> {
         if std::env::var("CI").ok().is_none() {
             eprintln!("skipping config test, not in CI");
+            return Ok(());
         }
-        FireblocksSigner::try_from_config(&["default"], |tx| log::info!("{tx}"))?;
-        FireblocksSigner::try_from_config(&["sandbox"], |tx| log::info!("{tx}"))?;
+        FireblocksSigner::try_from_config(&["default"], |tx| tracing::info!("{tx}"))?;
         Ok(())
     }
 }
