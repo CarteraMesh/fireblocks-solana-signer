@@ -36,7 +36,7 @@ dotenvy = "0.15"
 lazy_static = "1.4.0"
 solana-account-decoder = { version = "3" }
 solana-client = { version = "3", default-features = false }
-solana-system-interface = { version = "2", features = ["bincode"] }
+solana-system-interface = { version = "3", features = ["bincode"] }
 spl-memo-interface = { version = "2" }
 test_macros = { path = "tests/test_macros" }
 tokio = { version = "1", features = ["full"] }
