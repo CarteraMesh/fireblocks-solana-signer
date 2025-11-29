@@ -19,7 +19,7 @@
 //!
 //! // Create and sign a transaction
 //! let instruction = Instruction {
-//!     program_id: spl_memo::id(),
+//!     program_id: spl_memo_interface::v3::id(),
 //!     accounts: vec![],
 //!     data: b"Hello Fireblocks!".to_vec(),
 //! };

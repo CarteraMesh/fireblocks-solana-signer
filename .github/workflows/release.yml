@@ -1,17 +1,25 @@
+name: release
 permissions:
   contents: write
   checks: write
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: "version to release"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - rc
+          - minor
+          - beta
+          - alpha
+          - major
       runner:
         description: "Runner to use"
         required: false
-      version:
-        description: "Version to release (patch, minor, major, 0.1.xx)"
-        required: true
-        type: string
-name: release
 jobs:
   releaser:
     name: release
