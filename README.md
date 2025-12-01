@@ -19,7 +19,7 @@
 
 # Overview
 
-Implementation of a Solana [Signer](https://docs.rs/solana-signer/2.2.1/solana_signer/trait.Signer.html) using Fireblocks as backend signer
+Implementation of a Solana [Signer](https://docs.rs/solana-sdk/3.0.0/solana_sdk/signer/trait.Signer.html) using Fireblocks as backend signer
 
 ## Prerequisites
 
@@ -46,16 +46,16 @@ cargo add fireblocks-solana-signer@1
 
 ```rust,no_run
 use {
-    fireblocks_solana_signer::FireblocksSigner,
-    solana_message::Message,
-    solana_rpc_client::rpc_client::{RpcClient, SerializableTransaction},
+    fireblocks_solana_sdk::signature::FireblocksSigner,
+    solana_sdk::message::Message,
+    solana_client::rpc_client::{RpcClient, SerializableTransaction},
     solana_sdk::instruction::Instruction,
-    solana_transaction::Transaction,
+    solana_sdk::transaction::Transaction,
 };
 
 fn memo(message: &str) -> Instruction {
     Instruction {
-        program_id: spl_memo::id(),
+        program_id: spl_memo_interface::v3::id(),
         accounts: vec![],
         data: message.as_bytes().to_vec(),
     }
@@ -157,7 +157,7 @@ broadcast = true
 ### Using Configuration Files
 
 ```rust,no_run
-use fireblocks_solana_signer::FireblocksSigner;
+use fireblocks_solana_sdk::signature::FireblocksSigner;
 
 fn main() -> anyhow::Result<()> {
     // Use default configuration profile
