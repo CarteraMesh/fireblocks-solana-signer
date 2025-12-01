@@ -24,19 +24,19 @@ bon = "3.6.4"
 fireblocks-config = { version = "0.1" }
 fireblocks-signer-transport = { version = "0.1" }
 serde_json = { version = "1" }
-solana-sdk = { version = "3.0.0", features = ["full"] }
+solana-sdk = { version = "2", features = ["full"] }
 # solana-remote-wallet = { version = "=3.0.11" }
-solana-signature = { version = "3" }
+solana-signature = { version = "2" }
 thiserror = "2"
 tracing = { version = "0.1" }
 
 [dev-dependencies]
 anyhow = "1"
 dotenvy = "0.15"
-solana-account-decoder = { version = "3" }
-solana-client = { version = "3", default-features = false }
-solana-system-interface = { version = "3", features = ["bincode"] }
-spl-memo-interface = { version = "2" }
+solana-account-decoder = { version = "2" }
+solana-client = { version = "2", default-features = false }
+solana-system-interface = { version = "1", features = ["bincode"] }
+spl-memo-interface = { version = "1" }
 test_macros = { path = "tests/test_macros" }
 tokio = { version = "1", features = ["full"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "serde"] }
