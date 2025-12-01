@@ -17,6 +17,7 @@ on:
           - beta
           - alpha
           - major
+          - release
       runner:
         description: "Runner to use"
         required: false
